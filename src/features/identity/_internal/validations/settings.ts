@@ -1,12 +1,35 @@
 import { z } from "zod";
 import { PALETTE_IDS } from "@/shared/lib/palette";
 
+export const smtpSettingsSchema = z
+  .object({
+    provider: z.literal("gmail").default("gmail"),
+    enabled: z.boolean().default(false),
+    user: z.string().trim().email("อีเมลไม่ถูกต้อง").or(z.literal("")).default(""),
+    pass: z.string().trim().optional(),
+    fromName: z.string().trim().max(100).optional(),
+    fromEmail: z.string().trim().email("อีเมลผู้ส่งไม่ถูกต้อง").or(z.literal("")).optional(),
+    port: z.coerce.number().default(465),
+    secure: z.boolean().default(true),
+  })
+  .optional();
+
 export const updateSettingsSchema = z.object({
   nameTh: z.string().trim().min(1).max(255),
   nameEn: z.string().trim().min(1).max(255),
-  logoUrl: z.string().trim().url().max(500).or(z.literal("")).default(""),
+  logoUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((val) => val === "" || val.startsWith("/") || /^https?:\/\//.test(val), {
+      message: "Invalid URL or path",
+    })
+    .nullish()
+    .transform((val) => val ?? ""),
   palette: z.enum(PALETTE_IDS),
+  smtp: smtpSettingsSchema,
 });
 export const updateProfileSchema = z.object({ name: z.string().trim().min(1).max(255), locale: z.enum(["th", "en"]) });
+export type SmtpSettingsInput = z.infer<typeof smtpSettingsSchema>;
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

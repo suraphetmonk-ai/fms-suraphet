@@ -14,7 +14,6 @@ import {
   LiyonDialogBody,
   LiyonDialogFooter,
   LiyonField,
-  LiyonSelect,
   RowMenuItem,
   type DataTableColumn,
 } from "@/shared/components/liyon";
@@ -135,7 +134,7 @@ export function SampleClient({ initialItems, canManage }: Props) {
       key: "status",
       header: t("sample.statusField"),
       render: (row) => (
-        <StatusPill tone={row.status === "ACTIVE" ? "success" : "neutral"}>
+        <StatusPill tone={row.status === "ACTIVE" ? "ok" : "off"}>
           {row.status === "ACTIVE" ? t("status.active") : t("status.inactive")}
         </StatusPill>
       ),
@@ -165,6 +164,7 @@ export function SampleClient({ initialItems, canManage }: Props) {
 
       <LiyonCard>
         <DataTable<SampleItemDto>
+          headHeading={t("sample.title")}
           state={items.length === 0 ? "empty" : "data"}
           rows={items}
           columns={columns}
@@ -173,10 +173,10 @@ export function SampleClient({ initialItems, canManage }: Props) {
             canManage
               ? (row) => (
                   <>
-                    <RowMenuItem onClick={() => openEditDialog(row)} icon={<Edit2 className="h-4 w-4" />}>
+                    <RowMenuItem onSelect={() => openEditDialog(row)} icon={<Edit2 className="h-4 w-4" />}>
                       {t("sample.edit")}
                     </RowMenuItem>
-                    <RowMenuItem onClick={() => setDeleteConfirmItem(row)} destructive icon={<Trash2 className="h-4 w-4" />}>
+                    <RowMenuItem onSelect={() => setDeleteConfirmItem(row)} danger icon={<Trash2 className="h-4 w-4" />}>
                       {t("sample.delete")}
                     </RowMenuItem>
                   </>
@@ -196,40 +196,41 @@ export function SampleClient({ initialItems, canManage }: Props) {
       </LiyonCard>
 
       {/* Dialog สร้าง/แก้ไขข้อมูล */}
-      <LiyonDialog open={modalOpen} onOpenChange={setModalOpen} size="md">
+      <LiyonDialog open={modalOpen} onOpenChange={setModalOpen}>
         <LiyonDialogHeader
           title={editingItem ? t("sample.edit") : t("sample.create")}
           description={t("sample.subtitle")}
-          onClose={() => setModalOpen(false)}
         />
         <LiyonDialogBody>
           <div className="space-y-4 py-2">
-            <LiyonField
-              label={t("sample.titleField")}
-              required
-              inputProps={{
-                value: formTitle,
-                onChange: (e) => setFormTitle(e.target.value),
-                placeholder: "เช่น ข้อมูลทดสอบ 1",
-              }}
-            />
-            <LiyonField
-              label={t("sample.descField")}
-              inputProps={{
-                value: formDescription,
-                onChange: (e) => setFormDescription(e.target.value),
-                placeholder: "รายละเอียดเพิ่มเติม...",
-              }}
-            />
-            <LiyonSelect
-              label={t("sample.statusField")}
-              value={formStatus}
-              onChange={(e) => setFormStatus(e.target.value as "ACTIVE" | "INACTIVE")}
-              options={[
-                { value: "ACTIVE", label: t("status.active") },
-                { value: "INACTIVE", label: t("status.inactive") },
-              ]}
-            />
+            <LiyonField label={t("sample.titleField")}>
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder="เช่น ข้อมูลทดสอบ 1"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </LiyonField>
+            <LiyonField label={t("sample.descField")}>
+              <input
+                type="text"
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="รายละเอียดเพิ่มเติม..."
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </LiyonField>
+            <LiyonField label={t("sample.statusField")}>
+              <select
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value as "ACTIVE" | "INACTIVE")}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="ACTIVE">{t("status.active")}</option>
+                <option value="INACTIVE">{t("status.inactive")}</option>
+              </select>
+            </LiyonField>
           </div>
         </LiyonDialogBody>
         <LiyonDialogFooter>
@@ -243,11 +244,10 @@ export function SampleClient({ initialItems, canManage }: Props) {
       </LiyonDialog>
 
       {/* Dialog ยืนยันการลบ */}
-      <LiyonDialog open={!!deleteConfirmItem} onOpenChange={(open) => !open && setDeleteConfirmItem(null)} size="sm">
+      <LiyonDialog open={!!deleteConfirmItem} onOpenChange={(open) => !open && setDeleteConfirmItem(null)}>
         <LiyonDialogHeader
           title={t("sample.delete")}
           description={t("sample.deleteConfirm")}
-          onClose={() => setDeleteConfirmItem(null)}
         />
         <LiyonDialogBody>
           <p className="text-sm text-muted-foreground">

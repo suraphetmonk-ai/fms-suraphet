@@ -32,10 +32,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
         {state === "done" && <div className="state ok on"><p>{t("reset.done")}</p><div className="acts"><Link className="btn-sm solid" href="/login">{t("auth.signIn")}</Link></div></div>}
         {state === "invalid" && <div className="state bad on" role="alert"><p>{t("reset.invalid")}</p><div className="acts"><Link className="btn-sm" href="/forgot-password">{t("forgot.title")}</Link></div></div>}
         {state === "form" && (
-          <form onSubmit={onSubmit} className="fields">
-            <div className="field"><label htmlFor="pw">{t("reset.newPassword")}</label><span className="wrap"><LockIcon /><input id="pw" type="password" autoComplete="new-password" value={pw} onChange={(e) => { setPw(e.target.value); setError(null); }} required minLength={8} /></span></div>
-            <div className="field"><label htmlFor="pw2">{t("reset.confirmPassword")}</label><span className="wrap"><LockIcon /><input id="pw2" type="password" autoComplete="new-password" value={pw2} onChange={(e) => { setPw2(e.target.value); setError(null); }} required /></span>{error && <span className="err" role="alert">{error}</span>}</div>
-            <button className="btn-wide" type="submit" disabled={loading}>{t("reset.submit")}</button>
+          <form onSubmit={onSubmit} className="fields" suppressHydrationWarning>
+            <div className="field"><label htmlFor="pw">{t("reset.newPassword")}</label><span className="wrap"><LockIcon /><input id="pw" type="password" autoComplete="new-password" value={pw} onChange={(e) => { setPw(e.target.value); setError(null); }} required minLength={8} suppressHydrationWarning /></span></div>
+            <div className="field"><label htmlFor="pw2">{t("reset.confirmPassword")}</label><span className="wrap"><LockIcon /><input id="pw2" type="password" autoComplete="new-password" value={pw2} onChange={(e) => { setPw2(e.target.value); setError(null); }} required suppressHydrationWarning /></span>{error && <span className="err" role="alert">{error}</span>}</div>
+            <button className="btn-wide" type="submit" disabled={loading} suppressHydrationWarning>{t("reset.submit")}</button>
           </form>
         )}
       </div>

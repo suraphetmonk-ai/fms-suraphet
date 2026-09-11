@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   reporter: "list",
-  use: { baseURL: BASE_URL, trace: "on-first-retry", screenshot: "only-on-failure" },
+  use: { baseURL: BASE_URL, channel: "chrome", trace: "on-first-retry", screenshot: "only-on-failure" },
   projects: [
     { name: "setup", testMatch: /.*\.setup\.ts/ },
     { name: "admin", testIgnore: /(login|guest)\.spec\.ts/, use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/admin.json" }, dependencies: ["setup"] },

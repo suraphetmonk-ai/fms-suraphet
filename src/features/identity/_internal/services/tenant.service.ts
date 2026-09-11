@@ -5,31 +5,112 @@ import { errors } from "@/shared/lib/errors";
 import { writeAudit } from "../audit";
 import type { UpdateSettingsInput } from "../validations/settings";
 
-export interface TenantSettings { code: string; nameTh: string; nameEn: string; logoUrl: string | null; palette: PaletteId }
+export interface TenantSmtpSettings {
+  provider: "gmail";
+  enabled: boolean;
+  user: string;
+  hasPass?: boolean;
+  fromName: string;
+  fromEmail?: string;
+  port: number;
+  secure: boolean;
+}
+
+export interface TenantSettings {
+  code: string;
+  nameTh: string;
+  nameEn: string;
+  logoUrl: string | null;
+  palette: PaletteId;
+  smtp?: TenantSmtpSettings;
+}
 
 async function readTenantSettings(tenantId: string, db: Db): Promise<TenantSettings> {
   const t = await db.tenant.findUnique({ where: { id: tenantId } });
   if (!t) throw errors.not_found();
-  const p = (t.settings as { palette?: unknown }).palette;
-  return { code: t.code, nameTh: t.nameTh, nameEn: t.nameEn, logoUrl: t.logoUrl, palette: isPalette(p) ? p : DEFAULT_PALETTE };
+  const settingsObj = (t.settings && typeof t.settings === "object" ? t.settings : {}) as Record<string, unknown>;
+  const p = settingsObj.palette;
+  const rawSmtp = settingsObj.smtp as Record<string, unknown> | undefined;
+
+  let smtp: TenantSmtpSettings | undefined = undefined;
+  if (rawSmtp && typeof rawSmtp === "object") {
+    smtp = {
+      provider: "gmail",
+      enabled: Boolean(rawSmtp.enabled),
+      user: typeof rawSmtp.user === "string" ? rawSmtp.user : "",
+      hasPass: Boolean(typeof rawSmtp.pass === "string" && rawSmtp.pass.trim().length > 0),
+      fromName: typeof rawSmtp.fromName === "string" ? rawSmtp.fromName : "",
+      fromEmail: typeof rawSmtp.fromEmail === "string" ? rawSmtp.fromEmail : "",
+      port: typeof rawSmtp.port === "number" ? rawSmtp.port : 465,
+      secure: rawSmtp.secure !== false,
+    };
+  }
+
+  return {
+    code: t.code,
+    nameTh: t.nameTh,
+    nameEn: t.nameEn,
+    logoUrl: t.logoUrl,
+    palette: isPalette(p) ? p : DEFAULT_PALETTE,
+    smtp,
+  };
 }
 
 export async function getTenantSettings(tenantId: string): Promise<TenantSettings> {
   return readTenantSettings(tenantId, prisma);
 }
 
-/** เก็บคีย์อื่น ๆ ใน settings JSON ไว้ทั้งหมด — merge เฉพาะ palette ที่เปลี่ยน ไม่ทับทั้งก้อน */
+/** เก็บคีย์อื่น ๆ ใน settings JSON ไว้ทั้งหมด — merge palette และ smtp ไม่ทับคีย์อื่น */
 export async function updateTenantSettings(input: { tenantId: string; actorId: string } & UpdateSettingsInput): Promise<void> {
   await prisma.$transaction(async (tx) => {
     // อ่านผ่าน tx เดียวกัน ไม่ใช่ client กลาง — ไม่งั้นทรานแซกชันนี้กินคอนเนกชันจากพูลเพิ่มอีกเส้นเพื่ออ่าน
     // ค่าเดิม และค่าที่อ่านได้ก็อยู่นอกสแนปช็อตของทรานแซกชัน (ค่า before ของ audit อาจไม่ตรงกับที่กำลังจะทับ)
     const before = await readTenantSettings(input.tenantId, tx);
     const t = await tx.tenant.findUniqueOrThrow({ where: { id: input.tenantId }, select: { settings: true } });
+    const currentSettings = (t.settings && typeof t.settings === "object" ? t.settings : {}) as Record<string, unknown>;
+    const currentSmtp = (currentSettings.smtp && typeof currentSettings.smtp === "object" ? currentSettings.smtp : {}) as Record<string, unknown>;
+
+    let newSmtp = currentSettings.smtp;
+    if (input.smtp) {
+      // If pass is provided, update it. If empty string/omitted, retain current pass
+      const passToSave = input.smtp.pass && input.smtp.pass.trim().length > 0
+        ? input.smtp.pass.trim()
+        : (typeof currentSmtp.pass === "string" ? currentSmtp.pass : "");
+
+      newSmtp = {
+        provider: "gmail",
+        enabled: Boolean(input.smtp.enabled),
+        user: input.smtp.user?.trim() || "",
+        pass: passToSave,
+        fromName: input.smtp.fromName?.trim() || "",
+        fromEmail: input.smtp.fromEmail?.trim() || input.smtp.user?.trim() || "",
+        port: input.smtp.port || 465,
+        secure: input.smtp.secure !== false,
+      };
+    }
+
+    const nextSettings = {
+      ...currentSettings,
+      palette: input.palette,
+      ...(newSmtp ? { smtp: newSmtp } : {}),
+    };
+
     await tx.tenant.update({
       where: { id: input.tenantId },
-      data: { nameTh: input.nameTh, nameEn: input.nameEn, logoUrl: input.logoUrl || null, settings: { ...(t.settings as object), palette: input.palette } },
+      data: {
+        nameTh: input.nameTh,
+        nameEn: input.nameEn,
+        logoUrl: input.logoUrl || null,
+        settings: nextSettings,
+      },
     });
-    await writeAudit({ tenantId: input.tenantId, actorId: input.actorId, action: "tenant.settings_update", entity: "tenant", entityId: input.tenantId, before, after: input }, tx);
+
+    // For audit log: mask password if present
+    const auditAfter = {
+      ...input,
+      smtp: input.smtp ? { ...input.smtp, pass: input.smtp.pass ? "********" : undefined } : undefined,
+    };
+    await writeAudit({ tenantId: input.tenantId, actorId: input.actorId, action: "tenant.settings_update", entity: "tenant", entityId: input.tenantId, before, after: auditAfter }, tx);
   });
 }
 

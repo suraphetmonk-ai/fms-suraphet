@@ -29,13 +29,13 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <div className="state ok on"><p>{t("forgot.sent")}</p><div className="acts"><Link className="btn-sm solid" href="/login">{t("auth.backToLogin")}</Link></div></div>
         ) : (
-          <form onSubmit={onSubmit} className="fields">
+          <form onSubmit={onSubmit} className="fields" suppressHydrationWarning>
             <div className="field">
               <label htmlFor="email">{t("auth.email")}</label>
-              <span className="wrap"><MailIcon /><input id="email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldError(null); }} required /></span>
+              <span className="wrap"><MailIcon /><input id="email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldError(null); }} required suppressHydrationWarning /></span>
               {fieldError && <span className="err">{fieldError}</span>}
             </div>
-            <button className="btn-wide" type="submit" disabled={loading}>{t("forgot.submit")}</button>
+            <button className="btn-wide" type="submit" disabled={loading} suppressHydrationWarning>{t("forgot.submit")}</button>
             <p className="auth-foot"><Link href="/login">{t("auth.backToLogin")}</Link></p>
           </form>
         )}

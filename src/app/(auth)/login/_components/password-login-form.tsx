@@ -42,21 +42,21 @@ export function PasswordLoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="pane-password">
+    <form onSubmit={onSubmit} className="pane-password" suppressHydrationWarning>
       <div className="fields">
         <div className="field">
           <label htmlFor="email">{t("auth.email")}</label>
-          <span className="wrap"><MailIcon /><input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></span>
+          <span className="wrap"><MailIcon /><input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required suppressHydrationWarning /></span>
         </div>
         <div className="field">
           <label htmlFor="password">{t("auth.password")}</label>
           <span className="wrap">
             <LockIcon />
-            <input id="password" type={show ? "text" : "password"} className="pw" autoComplete="current-password" placeholder={t("auth.passwordPlaceholder")} value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <button type="button" className="peek" aria-pressed={show} aria-label={show ? t("auth.hidePassword") : t("auth.showPassword")} onClick={() => setShow((v) => !v)}><EyeOnIcon /><EyeOffIcon /></button>
+            <input id="password" type={show ? "text" : "password"} className="pw" autoComplete="current-password" placeholder={t("auth.passwordPlaceholder")} value={password} onChange={(e) => setPassword(e.target.value)} required suppressHydrationWarning />
+            <button type="button" className="peek" aria-pressed={show} aria-label={show ? t("auth.hidePassword") : t("auth.showPassword")} onClick={() => setShow((v) => !v)} suppressHydrationWarning><EyeOnIcon /><EyeOffIcon /></button>
           </span>
         </div>
-        <button className="btn-wide" type="submit" disabled={loading}><LogInIcon />{loading ? t("auth.signingIn") : t("auth.signIn")}</button>
+        <button className="btn-wide" type="submit" disabled={loading} suppressHydrationWarning><LogInIcon />{loading ? t("auth.signingIn") : t("auth.signIn")}</button>
       </div>
     </form>
   );
