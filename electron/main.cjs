@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
-const { fork } = require("child_process");
+const { fork, execSync } = require("child_process");
 
 app.name = "FMS-MCU";
 
@@ -11,6 +11,7 @@ let mainWindow = null;
 let setupWindow = null;
 let serverProcess = null;
 let serverPort = 3010;
+let embeddedPgPort = null;
 
 const isDev = !app.isPackaged;
 const userDataDir = app.getPath("userData");
@@ -50,6 +51,22 @@ app.on("second-instance", () => {
     setupWindow.focus();
   }
 });
+
+function copyRecursiveSync(src, dest) {
+  if (!fs.existsSync(src)) return;
+  const stats = fs.statSync(src);
+  if (stats.isDirectory()) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+    for (const childItem of fs.readdirSync(src)) {
+      copyRecursiveSync(path.join(src, childItem), path.join(dest, childItem));
+    }
+  } else {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest);
+  }
+}
 
 function getFreePort() {
   return new Promise((resolve, reject) => {
@@ -128,6 +145,117 @@ function checkPortReachable(host, port, timeoutMs = 3000) {
 
     socket.connect(port, host);
   });
+}
+
+// Embedded PostgreSQL Manager
+class EmbeddedPostgresManager {
+  static getPaths() {
+    let pgHome = "";
+    if (isDev) {
+      pgHome = path.join(__dirname, "../dist-resources/postgres");
+    } else {
+      pgHome = path.join(process.resourcesPath, "postgres");
+    }
+
+    const binDir = path.join(pgHome, "bin");
+    const templateDataDir = path.join(pgHome, "template_data");
+    const pgDataDir = path.join(userDataDir, "pgdata");
+    const pgLogFile = path.join(userDataDir, "pg.log");
+
+    return {
+      pgHome,
+      binDir,
+      pgctlExe: path.join(binDir, "pg_ctl.exe"),
+      initdbExe: path.join(binDir, "initdb.exe"),
+      templateDataDir,
+      pgDataDir,
+      pgLogFile,
+    };
+  }
+
+  static isAvailable() {
+    const paths = this.getPaths();
+    return fs.existsSync(paths.pgctlExe);
+  }
+
+  static async ensureDataDir() {
+    const paths = this.getPaths();
+    if (fs.existsSync(paths.pgDataDir)) {
+      // Clean up stale postmaster.pid if leftover from crash
+      const pidFile = path.join(paths.pgDataDir, "postmaster.pid");
+      if (fs.existsSync(pidFile)) {
+        logToFile("Found postmaster.pid, checking if process is active...");
+        try {
+          fs.unlinkSync(pidFile);
+          logToFile("Removed stale postmaster.pid");
+        } catch {}
+      }
+      return;
+    }
+
+    logToFile("Initializing user pgdata directory...");
+    if (fs.existsSync(paths.templateDataDir)) {
+      logToFile(`Copying template_data from ${paths.templateDataDir} to ${paths.pgDataDir}...`);
+      copyRecursiveSync(paths.templateDataDir, paths.pgDataDir);
+      logToFile("template_data copied successfully");
+    } else {
+      logToFile("template_data not found, running initdb fallback...");
+      execSync(`"${paths.initdbExe}" -D "${paths.pgDataDir}" -U postgres -A trust -E UTF8`, {
+        stdio: "ignore",
+      });
+    }
+  }
+
+  static async start() {
+    if (!this.isAvailable()) {
+      throw new Error("Embedded PostgreSQL binary not found");
+    }
+
+    const paths = this.getPaths();
+    await this.ensureDataDir();
+
+    embeddedPgPort = await getFreePort();
+    logToFile(`Starting Embedded PostgreSQL on port ${embeddedPgPort}...`);
+
+    try {
+      execSync(
+        `"${paths.pgctlExe}" -D "${paths.pgDataDir}" -l "${paths.pgLogFile}" -o "-p ${embeddedPgPort} -h 127.0.0.1" start`,
+        { stdio: "ignore" }
+      );
+    } catch (e) {
+      logToFile(`pg_ctl start warning: ${e.message}`);
+    }
+
+    // Wait for port to become reachable
+    let ready = false;
+    for (let i = 0; i < 20; i++) {
+      const res = await checkPortReachable("127.0.0.1", embeddedPgPort, 500);
+      if (res.ok) {
+        ready = true;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    if (!ready) {
+      throw new Error("Embedded PostgreSQL failed to start within timeout");
+    }
+
+    logToFile(`Embedded PostgreSQL is ready on 127.0.0.1:${embeddedPgPort}`);
+    return embeddedPgPort;
+  }
+
+  static stop() {
+    if (!this.isAvailable()) return;
+    const paths = this.getPaths();
+    if (fs.existsSync(paths.pgDataDir)) {
+      try {
+        logToFile("Stopping Embedded PostgreSQL...");
+        execSync(`"${paths.pgctlExe}" -D "${paths.pgDataDir}" -m fast stop`, { stdio: "ignore" });
+        logToFile("Embedded PostgreSQL stopped successfully");
+      } catch {}
+    }
+  }
 }
 
 async function waitForServer(url, maxAttempts = 40, checkExited) {
@@ -257,7 +385,7 @@ function startNextServer(envVars) {
 }
 
 function getAppIcon() {
-  if (!isDev) return undefined; // Embedded icon in PE header used on Windows packaged app
+  if (!isDev) return undefined;
   const icoPath = path.join(__dirname, "../public/icon.ico");
   if (fs.existsSync(icoPath)) return icoPath;
   return undefined;
@@ -439,30 +567,46 @@ ipcMain.handle("get-db-config", async () => {
   let envs = {};
   if (fs.existsSync(configFilePath)) {
     envs = parseEnvFile(configFilePath);
-  } else if (isDev && fs.existsSync(path.join(__dirname, "../.env"))) {
-    envs = parseEnvFile(path.join(__dirname, "../.env"));
   }
 
+  const mode = envs.DB_MODE || "embedded";
   const parsed = parseDatabaseUrl(envs.DATABASE_URL);
-  return parsed || { host: "localhost", port: 5432, database: "ums_dev", user: "postgres", password: "" };
+  return {
+    mode,
+    host: (parsed && parsed.host) || "localhost",
+    port: (parsed && parsed.port) || 5432,
+    database: (parsed && parsed.database) || "ums_dev",
+    user: (parsed && parsed.user) || "postgres",
+    password: (parsed && parsed.password) || "",
+  };
 });
 
 ipcMain.handle("save-db-config", async (_event, config) => {
   try {
-    const { host, port, database, user, password } = config;
-    const encodedUser = encodeURIComponent(user);
-    const encodedPass = encodeURIComponent(password);
-    const databaseUrl = `postgresql://${encodedUser}:${encodedPass}@${host}:${port}/${database}?schema=public`;
-
+    const { mode, host, port, database, user, password } = config;
+    let databaseUrl = "";
     let existingEnv = {};
     if (fs.existsSync(configFilePath)) {
       existingEnv = parseEnvFile(configFilePath);
     }
-
     const authSecret = existingEnv.AUTH_SECRET || require("crypto").randomBytes(32).toString("hex");
+
+    if (mode === "central") {
+      const encodedUser = encodeURIComponent(user);
+      const encodedPass = encodeURIComponent(password);
+      databaseUrl = `postgresql://${encodedUser}:${encodedPass}@${host}:${port}/${database}?schema=public`;
+
+      // Stop embedded postgres if it was running
+      EmbeddedPostgresManager.stop();
+    } else {
+      // Start embedded postgresql
+      const pgPort = await EmbeddedPostgresManager.start();
+      databaseUrl = `postgresql://postgres@127.0.0.1:${pgPort}/ums_dev?schema=public`;
+    }
 
     const content = [
       "# การตั้งค่าฐานข้อมูลระบบ FMS MCU",
+      `DB_MODE="${mode}"`,
       `DATABASE_URL="${databaseUrl}"`,
       `AUTH_SECRET="${authSecret}"`,
       "",
@@ -510,22 +654,51 @@ app.whenReady().then(async () => {
   if (fs.existsSync(configFilePath)) {
     envs = parseEnvFile(configFilePath);
     logToFile(`Loaded configuration from ${configFilePath}`);
-  } else if (isDev && fs.existsSync(path.join(__dirname, "../.env"))) {
-    envs = parseEnvFile(path.join(__dirname, "../.env"));
-    logToFile("Loaded dev environment from .env");
   }
 
-  if (envs.DATABASE_URL) {
+  const dbMode = envs.DB_MODE || "embedded";
+  const authSecret = envs.AUTH_SECRET || require("crypto").randomBytes(32).toString("hex");
+
+  if (dbMode === "central" && envs.DATABASE_URL) {
+    // Mode Central
     try {
-      logToFile("Found DATABASE_URL, attempting to start server...");
+      logToFile("Starting with Central Database...");
       const appUrl = await startNextServer(envs);
       createMainWindow(appUrl);
     } catch (err) {
-      logToFile(`Auto-start failed: ${err.message}. Showing setup window.`);
+      logToFile(`Central DB start failed: ${err.message}. Showing setup window.`);
+      openSetupWindow();
+    }
+  } else if (EmbeddedPostgresManager.isAvailable()) {
+    // Mode Embedded (Default)
+    try {
+      logToFile("Starting with Embedded PostgreSQL...");
+      const pgPort = await EmbeddedPostgresManager.start();
+      const databaseUrl = `postgresql://postgres@127.0.0.1:${pgPort}/ums_dev?schema=public`;
+
+      // Save config if not present
+      if (!fs.existsSync(configFilePath)) {
+        const content = [
+          "# การตั้งค่าฐานข้อมูลระบบ FMS MCU",
+          `DB_MODE="embedded"`,
+          `DATABASE_URL="${databaseUrl}"`,
+          `AUTH_SECRET="${authSecret}"`,
+          "",
+        ].join("\n");
+        fs.writeFileSync(configFilePath, content, "utf8");
+      }
+
+      const appUrl = await startNextServer({
+        DATABASE_URL: databaseUrl,
+        AUTH_SECRET: authSecret,
+      });
+      createMainWindow(appUrl);
+    } catch (err) {
+      logToFile(`Embedded DB start failed: ${err.message}. Showing setup window.`);
       openSetupWindow();
     }
   } else {
-    logToFile("No DATABASE_URL found. Showing setup window.");
+    logToFile("Embedded PostgreSQL not available. Showing setup window.");
     openSetupWindow();
   }
 
@@ -538,18 +711,22 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
+  logToFile("window-all-closed event");
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
   }
+  EmbeddedPostgresManager.stop();
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
 app.on("before-quit", () => {
+  logToFile("before-quit event");
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
   }
+  EmbeddedPostgresManager.stop();
 });

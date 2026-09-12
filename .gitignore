@@ -13,3 +13,4 @@ e2e/.auth/
 .superpowers/
 public/uploads/
 dist/
+dist-resources/

@@ -19,5 +19,5 @@
     "vitest.integration.config.ts",
     "vitest.setup.ts"
   ],
-  "exclude": ["node_modules", "dist", "e2e/**"]
+  "exclude": ["node_modules", "dist", "dist-resources", "e2e/**"]
 }
