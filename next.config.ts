@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/academic-programs",
+        destination: "/admin/programs",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
