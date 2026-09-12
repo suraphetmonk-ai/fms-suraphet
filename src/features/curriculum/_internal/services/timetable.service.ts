@@ -258,7 +258,10 @@ function mapScheduleRow(r: ScheduleRowWithRelations): ClassScheduleDto {
   if (r.personnel.monasticTitle) {
     const chayaPart = r.personnel.chaya ? ` ${r.personnel.chaya}` : "";
     const paliPart = r.personnel.paliDegree ? ` (${r.personnel.paliDegree})` : "";
-    fullNameTh = `${r.personnel.monasticTitle} ${r.personnel.firstNameTh}${chayaPart} ${r.personnel.lastNameTh}${paliPart}`;
+    const namePart = r.personnel.monasticTitle.includes(r.personnel.firstNameTh)
+      ? r.personnel.monasticTitle
+      : `${r.personnel.monasticTitle} ${r.personnel.firstNameTh}`;
+    fullNameTh = `${namePart}${chayaPart} ${r.personnel.lastNameTh}${paliPart}`;
   } else if (r.personnel.paliDegree) {
     fullNameTh = `${rankTh}${r.personnel.firstNameTh} ${r.personnel.lastNameTh} (${r.personnel.paliDegree})`;
   }

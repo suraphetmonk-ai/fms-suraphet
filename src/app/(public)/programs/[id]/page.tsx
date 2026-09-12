@@ -261,7 +261,7 @@ export default async function PublicProgramDetailPage({
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                         {isTh
-                          ? `${f.monasticTitle ? f.monasticTitle + " " : ""}${f.academicRank ? f.academicRank + " " : ""}${f.firstNameTh} ${f.chaya ? "(" + f.chaya + ") " : ""}${f.lastNameTh}`
+                          ? `${f.monasticTitle ? f.monasticTitle + " " : ""}${f.academicRank ? f.academicRank + " " : ""}${f.monasticTitle?.includes(f.firstNameTh) ? "" : f.firstNameTh + " "}${f.chaya ? "(" + f.chaya + ") " : ""}${f.lastNameTh}`
                           : `${f.academicRank ? f.academicRank + " " : ""}${f.firstNameEn} ${f.lastNameEn}`}
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate">

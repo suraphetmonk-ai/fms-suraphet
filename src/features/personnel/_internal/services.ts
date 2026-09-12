@@ -268,7 +268,10 @@ function mapPersonnelRow(r: PersonnelProfileWithRelations): PersonnelDto {
   if (r.monasticTitle) {
     const chayaPart = r.chaya ? ` ${r.chaya}` : "";
     const paliPart = r.paliDegree ? ` (${r.paliDegree})` : "";
-    fullNameTh = `${r.monasticTitle} ${r.firstNameTh}${chayaPart} ${r.lastNameTh}${paliPart}`;
+    const namePart = r.monasticTitle.includes(r.firstNameTh)
+      ? r.monasticTitle
+      : `${r.monasticTitle} ${r.firstNameTh}`;
+    fullNameTh = `${namePart}${chayaPart} ${r.lastNameTh}${paliPart}`;
   } else if (r.paliDegree) {
     fullNameTh = `${rankTh}${r.firstNameTh} ${r.lastNameTh} (${r.paliDegree})`;
   }
