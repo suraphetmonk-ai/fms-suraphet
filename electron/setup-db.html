@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ตั้งค่าการเชื่อมต่อฐานข้อมูล - คณะวิทยาการจัดการ มจร</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --input-bg: #ffffff;
+      --success: #16a34a;
+      --error: #dc2626;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #090d16;
+        --card-bg: #131b2e;
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --border: #1e293b;
+        --input-bg: #0f172a;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sarabun", sans-serif; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      user-select: none;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      margin-bottom: 12px;
+    }
+    .logo svg { width: 32px; height: 32px; fill: white; }
+    h1 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    p.subtitle { font-size: 13px; color: var(--text-muted); }
+    .form-group { margin-bottom: 16px; }
+    .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    input {
+      width: 100%;
+      height: 40px;
+      padding: 8px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input-bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+    .status-box {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .status-box.ok { display: block; background: rgba(22, 163, 74, 0.1); border: 1px solid rgba(22, 163, 74, 0.2); color: var(--success); }
+    .status-box.bad { display: block; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); color: var(--error); }
+    .actions { display: flex; gap: 12px; margin-top: 24px; }
+    button {
+      flex: 1;
+      height: 42px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s, opacity 0.15s;
+      border: none;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-test { background: var(--bg); border: 1px solid var(--border); color: var(--text); }
+    .btn-test:hover:not(:disabled) { background: var(--border); }
+    .btn-save { background: var(--primary); color: white; }
+    .btn-save:hover:not(:disabled) { background: var(--primary-hover); }
+    .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>
+      </div>
+      <h1>เชื่อมต่อฐานข้อมูลส่วนกลาง (PostgreSQL)</h1>
+      <p class="subtitle">กรอกข้อมูลเซิร์ฟเวอร์ฐานข้อมูลของระบบ FMS MCU</p>
+    </div>
+
+    <div id="statusBox" class="status-box"></div>
+
+    <form id="dbForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="host">Server Host / IP Address *</label>
+          <input type="text" id="host" required placeholder="เช่น 192.168.1.100 หรือ db.mcu.ac.th" value="localhost">
+        </div>
+        <div class="form-group">
+          <label for="port">Port *</label>
+          <input type="number" id="port" required value="5432">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="database">Database Name *</label>
+        <input type="text" id="database" required value="ums_dev" placeholder="เช่น fms_mcu หรือ ums_dev">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="user">Username *</label>
+          <input type="text" id="user" required value="postgres">
+        </div>
+        <div class="form-group">
+          <label for="password">Password *</label>
+          <input type="password" id="password" required placeholder="รหัสผ่านฐานข้อมูล">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="testBtn" class="btn-test">ทดสอบการเชื่อมต่อ</button>
+        <button type="submit" id="saveBtn" class="btn-save">บันทึกและเริ่มโปรแกรม</button>
+      </div>
+      <p class="hint" style="text-align: center; margin-top: 14px;">ค่าการตั้งค่าจะถูกเก็บไว้ที่ AppData บนเครื่องนี้อย่างปลอดภัย</p>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById("dbForm");
+    const testBtn = document.getElementById("testBtn");
+    const saveBtn = document.getElementById("saveBtn");
+    const statusBox = document.getElementById("statusBox");
+
+    function showStatus(ok, msg) {
+      statusBox.className = "status-box " + (ok ? "ok" : "bad");
+      statusBox.textContent = msg;
+    }
+
+    // Load existing config if available
+    if (window.electronAPI) {
+      window.electronAPI.getConfig().then(cfg => {
+        if (cfg) {
+          if (cfg.host) document.getElementById("host").value = cfg.host;
+          if (cfg.port) document.getElementById("port").value = cfg.port;
+          if (cfg.database) document.getElementById("database").value = cfg.database;
+          if (cfg.user) document.getElementById("user").value = cfg.user;
+          if (cfg.password) document.getElementById("password").value = cfg.password;
+        }
+      }).catch(() => {});
+    }
+
+    function getPayload() {
+      return {
+        host: document.getElementById("host").value.trim(),
+        port: parseInt(document.getElementById("port").value.trim(), 10) || 5432,
+        database: document.getElementById("database").value.trim(),
+        user: document.getElementById("user").value.trim(),
+        password: document.getElementById("password").value,
+      };
+    }
+
+    testBtn.addEventListener("click", async () => {
+      const payload = getPayload();
+      testBtn.disabled = true;
+      testBtn.textContent = "กำลังทดสอบ...";
+      statusBox.style.display = "none";
+
+      try {
+        const res = await window.electronAPI.testConnection(payload);
+        if (res.ok) {
+          showStatus(true, "✔ เชื่อมต่อเซิร์ฟเวอร์ PostgreSQL สำเร็จพร้อมใช้งาน!");
+        } else {
+          showStatus(false, "✖ เชื่อมต่อไม่สำเร็จ: " + (res.error || "กรุณาตรวจสอบ IP, Port และรหัสผ่าน"));
+        }
+      } catch (err) {
+        showStatus(false, "✖ เกิดข้อผิดพลาด: " + (err.message || String(err)));
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = "ทดสอบการเชื่อมต่อ";
+      }
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = getPayload();
+      saveBtn.disabled = true;
+      saveBtn.textContent = "กำลังบันทึกและเริ่มระบบ...";
+
+      try {
+        const res = await window.electronAPI.saveConfig(payload);
+        if (!res.ok) {
+          showStatus(false, "บันทึกไม่สำเร็จ: " + (res.error || ""));
+          saveBtn.disabled = false;
+          saveBtn.textContent = "บันทึกและเริ่มโปรแกรม";
+        }
+      } catch (err) {
+        showStatus(false, "เกิดข้อผิดพลาด: " + (err.message || String(err)));
+        saveBtn.disabled = false;
+        saveBtn.textContent = "บันทึกและเริ่มโปรแกรม";
+      }
+    });
+  </script>
+</body>
+</html>
