@@ -1,7 +1,8 @@
 import type { Dictionary } from "@/shared/lib/i18n/translate";
 
 export const MESSAGES: Dictionary = {
-  "curriculum.nav": { th: "จัดการหลักสูตร", en: "Curriculum Management" },
+  "curriculum.nav": { th: "จัดการหลักสูตรและวิชาการ", en: "Curriculum & Academic" },
+  "curriculum.programs": { th: "หลักสูตรการศึกษา", en: "Degree Programs" },
   "curriculum.title": { th: "หลักสูตรการศึกษา", en: "Academic Programs" },
   "curriculum.subtitle": { th: "จัดการข้อมูลหลักสูตร โครงสร้างแผนการเรียน และคลังรายวิชา", en: "Manage academic degree programs, study plans, and course catalog" },
   "curriculum.create": { th: "เพิ่มหลักสูตรใหม่", en: "Create Program" },
