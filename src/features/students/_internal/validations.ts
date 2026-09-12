@@ -3,6 +3,14 @@ import { z } from "zod";
 export const studentStatusEnum = z.enum(["STUDYING", "ON_LEAVE", "GRADUATED", "RETIRED"]);
 export type StudentStatus = z.infer<typeof studentStatusEnum>;
 
+export type AcademicRiskLevel = "NORMAL" | "WARNING" | "CRITICAL";
+
+export function computeRiskLevel(gpa: number): AcademicRiskLevel {
+  if (gpa < 2.0) return "CRITICAL";
+  if (gpa < 2.5) return "WARNING";
+  return "NORMAL";
+}
+
 export const createStudentSchema = z.object({
   studentCode: z.string().min(4, "รหัสนิสิตต้องมีความยาวอย่างน้อย 4 ตัวอักษร").max(50),
   title: z.string().min(1).max(50).default("นาย"),

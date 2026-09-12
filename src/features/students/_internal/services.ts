@@ -1,17 +1,19 @@
 import { prisma } from "@/shared/lib/infra/prisma";
 import type { Prisma } from "@/generated/prisma";
 import { writeAudit } from "@/features/identity/server";
-import type {
-  CreateStudentInput,
-  UpdateStudentInput,
-  BatchAssignAdvisorInput,
-  CreateAdvisingRecordInput,
-  CreateScholarshipInput,
-  ImportStudentsInput,
-  StudentStatus,
+import {
+  type CreateStudentInput,
+  type UpdateStudentInput,
+  type BatchAssignAdvisorInput,
+  type CreateAdvisingRecordInput,
+  type CreateScholarshipInput,
+  type ImportStudentsInput,
+  type StudentStatus,
+  type AcademicRiskLevel,
+  computeRiskLevel,
 } from "./validations";
 
-export type AcademicRiskLevel = "NORMAL" | "WARNING" | "CRITICAL";
+export type { AcademicRiskLevel };
 
 export interface StudentDto {
   id: string;
@@ -82,11 +84,7 @@ export interface PublicStudentVerificationDto {
   isGraduated: boolean;
 }
 
-export function computeRiskLevel(gpa: number): AcademicRiskLevel {
-  if (gpa < 2.0) return "CRITICAL";
-  if (gpa < 2.5) return "WARNING";
-  return "NORMAL";
-}
+export { computeRiskLevel };
 
 type StudentWithRelations = Prisma.StudentGetPayload<{
   include: { program?: true; advisor?: true };
