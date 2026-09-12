@@ -47,6 +47,9 @@ model Tenant {
   students          Student[]
   advisingRecords   AdvisingRecord[]
   studentScholarships StudentScholarship[]
+  documents           Document[]
+  documentApprovals   DocumentApproval[]
+  documentHistories   DocumentHistory[]
 
   @@map("tenants")
 }
@@ -77,6 +80,9 @@ model User {
   articles          Article[]
   personnelProfiles PersonnelProfile[]
   students          Student[]
+  createdDocuments  Document[]         @relation("DocumentCreator")
+  documentApprovals DocumentApproval[] @relation("DocumentApprover")
+  documentHistories DocumentHistory[]  @relation("DocumentHistoryActor")
 
   @@map("users")
 }
@@ -308,6 +314,7 @@ model Department {
   tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   personnel PersonnelProfile[]
   programs  Program[]
+  documents Document[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -614,5 +621,81 @@ model StudentScholarship {
   @@index([tenantId, studentId])
   @@index([academicYear])
   @@map("student_scholarships")
+}
+
+// ==========================================
+// 4. ระบบบริหารจัดการและอนุมัติเอกสาร (E-Document & Approval)
+// ==========================================
+model Document {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  documentNumber  String   @map("document_number") @db.VarChar(100)
+  title           String   @db.VarChar(255)
+  category        String   @default("GENERAL") @db.VarChar(50)
+  urgency         String   @default("NORMAL") @db.VarChar(30)
+  confidentiality String   @default("NORMAL") @db.VarChar(30)
+  senderName      String   @map("sender_name") @db.VarChar(255)
+  recipientName   String   @map("recipient_name") @db.VarChar(255)
+  summary         String   @db.Text
+  attachmentUrl   String?  @map("attachment_url") @db.VarChar(500)
+  status          String   @default("DRAFT") @db.VarChar(30)
+  departmentId    String?  @map("department_id") @db.Uuid
+  createdById     String   @map("created_by_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department  Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  creator     User               @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  approvals   DocumentApproval[]
+  histories   DocumentHistory[]
+
+  @@unique([tenantId, documentNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@index([tenantId, urgency])
+  @@index([createdById])
+  @@index([departmentId])
+  @@map("documents")
+}
+
+model DocumentApproval {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  documentId   String    @map("document_id") @db.Uuid
+  approverId   String    @map("approver_id") @db.Uuid
+  stepOrder    Int       @map("step_order")
+  roleTitle    String    @map("role_title") @db.VarChar(150)
+  status       String    @default("PENDING") @db.VarChar(30)
+  comment      String?   @db.Text
+  signatureUrl String?   @map("signature_url") @db.VarChar(500)
+  actedAt      DateTime? @map("acted_at") @db.Timestamptz()
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  approver User     @relation("DocumentApprover", fields: [approverId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, approverId, status])
+  @@index([documentId, stepOrder])
+  @@map("document_approvals")
+}
+
+model DocumentHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  actorId     String   @map("actor_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  description String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  actor    User     @relation("DocumentHistoryActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, documentId])
+  @@map("document_histories")
 }
 
