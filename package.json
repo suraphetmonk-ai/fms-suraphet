@@ -80,26 +80,17 @@
   "build": {
     "appId": "th.ac.mcu.fms",
     "productName": "FMS-MCU",
+    "afterPack": "scripts/after-pack.cjs",
     "directories": {
       "output": "dist"
     },
     "files": [
       "electron/**/*",
-      "public/**/*",
-      ".next/standalone/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": ".next/standalone",
-        "to": "app.asar.unpacked/.next/standalone",
-        "filter": [
-          "**/*"
-        ]
-      }
+      "public/**/*"
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/icon.svg"
+      "icon": "public/icon.ico"
     },
     "nsis": {
       "oneClick": false,

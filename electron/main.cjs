@@ -5,6 +5,8 @@ const http = require("http");
 const net = require("net");
 const { fork } = require("child_process");
 
+app.name = "FMS-MCU";
+
 let mainWindow = null;
 let setupWindow = null;
 let serverProcess = null;
@@ -13,6 +15,24 @@ let serverPort = 3010;
 const isDev = !app.isPackaged;
 const userDataDir = app.getPath("userData");
 const configFilePath = path.join(userDataDir, "config.env");
+const logFilePath = path.join(userDataDir, "app.log");
+
+function logToFile(msg) {
+  try {
+    if (!fs.existsSync(userDataDir)) {
+      fs.mkdirSync(userDataDir, { recursive: true });
+    }
+    fs.appendFileSync(logFilePath, `[${new Date().toISOString()}] ${msg}\n`, "utf8");
+  } catch {}
+}
+
+process.on("uncaughtException", (err) => {
+  logToFile(`[UNCAUGHT EXCEPTION] ${err.stack || err.message}`);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logToFile(`[UNHANDLED REJECTION] ${reason}`);
+});
 
 // Ensure single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -25,6 +45,9 @@ app.on("second-instance", () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
+  } else if (setupWindow) {
+    if (setupWindow.isMinimized()) setupWindow.restore();
+    setupWindow.focus();
   }
 });
 
@@ -107,8 +130,11 @@ function checkPortReachable(host, port, timeoutMs = 3000) {
   });
 }
 
-async function waitForServer(url, maxAttempts = 60) {
+async function waitForServer(url, maxAttempts = 40, checkExited) {
   for (let i = 0; i < maxAttempts; i++) {
+    if (checkExited && checkExited()) {
+      return false;
+    }
     try {
       await new Promise((resolve, reject) => {
         const req = http.get(url, (res) => {
@@ -116,14 +142,14 @@ async function waitForServer(url, maxAttempts = 60) {
           else reject(new Error("No status"));
         });
         req.on("error", reject);
-        req.setTimeout(1000, () => {
+        req.setTimeout(800, () => {
           req.destroy();
           reject(new Error("Timeout"));
         });
       });
       return true;
     } catch {
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 400));
     }
   }
   return false;
@@ -146,23 +172,17 @@ function startNextServer(envVars) {
     if (isDev) {
       serverPath = path.join(__dirname, "../.next/standalone/server.js");
     } else {
-      serverPath = path.join(process.resourcesPath, "app.asar.unpacked/.next/standalone/server.js");
+      serverPath = path.join(process.resourcesPath, "standalone/server.js");
+      if (!fs.existsSync(serverPath)) {
+        serverPath = path.join(process.resourcesPath, "app.asar.unpacked/.next/standalone/server.js");
+      }
       if (!fs.existsSync(serverPath)) {
         serverPath = path.join(app.getAppPath(), ".next/standalone/server.js");
       }
     }
 
     const appUrl = `http://127.0.0.1:${serverPort}`;
-
-    const childEnv = {
-      ...process.env,
-      ...envVars,
-      PORT: serverPort.toString(),
-      HOSTNAME: "127.0.0.1",
-      NODE_ENV: "production",
-      APP_URL: appUrl,
-      ELECTRON_RUN_AS_NODE: "1",
-    };
+    logToFile(`Target server path: ${serverPath}`);
 
     if (!fs.existsSync(serverPath)) {
       if (isDev) {
@@ -171,93 +191,173 @@ function startNextServer(envVars) {
         resolve(`http://127.0.0.1:3010`);
         return;
       }
-      return reject(new Error("Next.js Standalone server.js not found at: " + serverPath));
+      const notFoundErr = new Error("Next.js Standalone server.js not found at: " + serverPath);
+      logToFile(notFoundErr.message);
+      return reject(notFoundErr);
     }
 
+    const standaloneDir = path.dirname(serverPath);
+
+    const childEnv = {
+      ...process.env,
+      ...envVars,
+      PORT: serverPort.toString(),
+      HOSTNAME: "127.0.0.1",
+      NODE_ENV: "production",
+      APP_URL: appUrl,
+      NEXTAUTH_URL: appUrl,
+      AUTH_TRUST_HOST: "true",
+      ELECTRON_RUN_AS_NODE: "1",
+    };
+
+    logToFile(`Launching standalone server process (port: ${serverPort}, cwd: ${standaloneDir})`);
+
+    let hasExited = false;
+    let exitCode = null;
+    let stderrBuffer = "";
+
     serverProcess = fork(serverPath, [], {
+      cwd: standaloneDir,
       env: childEnv,
       stdio: "pipe",
     });
 
-    serverProcess.stdout.on("data", (d) => console.log(`[Next.js] ${d}`));
-    serverProcess.stderr.on("data", (d) => console.error(`[Next.js ERR] ${d}`));
+    serverProcess.stdout.on("data", (d) => {
+      const msg = d.toString();
+      logToFile(`[Next.js stdout] ${msg.trim()}`);
+      console.log(`[Next.js] ${msg}`);
+    });
+
+    serverProcess.stderr.on("data", (d) => {
+      const msg = d.toString();
+      stderrBuffer += msg;
+      logToFile(`[Next.js stderr] ${msg.trim()}`);
+      console.error(`[Next.js ERR] ${msg}`);
+    });
+
     serverProcess.on("exit", (code) => {
-      console.log(`[Next.js] exited with code ${code}`);
+      hasExited = true;
+      exitCode = code;
+      logToFile(`[Next.js exit] code: ${code}`);
       serverProcess = null;
     });
 
-    const isReady = await waitForServer(appUrl);
+    const isReady = await waitForServer(appUrl, 40, () => hasExited);
     if (isReady) {
+      logToFile(`Server successfully responded at ${appUrl}`);
       resolve(appUrl);
     } else {
-      reject(new Error("Server failed to respond within time limit"));
+      const errMsg = hasExited
+        ? `เซิร์ฟเวอร์ปิดตัวกะทันหัน (Exit code ${exitCode}): ${stderrBuffer.slice(-300)}`
+        : "เซิร์ฟเวอร์ไม่ตอบสนองภายในเวลาที่กำหนด";
+      logToFile(`Failed to start server: ${errMsg}`);
+      reject(new Error(errMsg));
     }
   });
 }
 
+function getAppIcon() {
+  if (!isDev) return undefined; // Embedded icon in PE header used on Windows packaged app
+  const icoPath = path.join(__dirname, "../public/icon.ico");
+  if (fs.existsSync(icoPath)) return icoPath;
+  return undefined;
+}
+
 function createMainWindow(targetUrl) {
+  logToFile("createMainWindow called: " + targetUrl);
   if (mainWindow) {
     mainWindow.loadURL(targetUrl);
     mainWindow.show();
+    mainWindow.focus();
     return;
   }
 
-  const iconPath = path.join(__dirname, "../public/icon.svg");
+  try {
+    mainWindow = new BrowserWindow({
+      width: 1366,
+      height: 850,
+      minWidth: 1024,
+      minHeight: 700,
+      title: "คณะวิทยาการจัดการ มจร (FMS MCU)",
+      icon: getAppIcon(),
+      show: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+      autoHideMenuBar: false,
+    });
 
-  mainWindow = new BrowserWindow({
-    width: 1366,
-    height: 850,
-    minWidth: 1024,
-    minHeight: 700,
-    title: "คณะวิทยาการจัดการ มจร (FMS MCU)",
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-    autoHideMenuBar: false,
-  });
+    buildAppMenu();
 
-  buildAppMenu();
+    mainWindow.loadURL(targetUrl).catch((err) => {
+      logToFile(`mainWindow loadURL error: ${err.message}`);
+    });
 
-  mainWindow.loadURL(targetUrl);
+    mainWindow.on("closed", () => {
+      logToFile("mainWindow closed");
+      mainWindow = null;
+    });
 
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      shell.openExternal(url);
+      return { action: "deny" };
+    });
+  } catch (err) {
+    logToFile(`[createMainWindow EXCEPTION] ${err.stack || err.message}`);
+  }
 }
 
 function openSetupWindow() {
+  logToFile("openSetupWindow called");
   if (setupWindow) {
+    setupWindow.show();
     setupWindow.focus();
     return;
   }
 
-  setupWindow = new BrowserWindow({
-    width: 540,
-    height: 680,
-    resizable: false,
-    maximizable: false,
-    title: "ตั้งค่าฐานข้อมูล - คณะวิทยาการจัดการ มจร",
-    icon: path.join(__dirname, "../public/icon.svg"),
-    webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
+  try {
+    const preloadPath = path.join(__dirname, "preload.cjs");
+    const htmlPath = path.join(__dirname, "setup-db.html");
+    logToFile(`setupWindow preload: ${preloadPath} (exists: ${fs.existsSync(preloadPath)})`);
+    logToFile(`setupWindow html: ${htmlPath} (exists: ${fs.existsSync(htmlPath)})`);
 
-  setupWindow.loadFile(path.join(__dirname, "setup-db.html"));
-  setupWindow.setMenuBarVisibility(false);
+    setupWindow = new BrowserWindow({
+      width: 560,
+      height: 700,
+      resizable: false,
+      maximizable: false,
+      title: "ตั้งค่าฐานข้อมูล - คณะวิทยาการจัดการ มจร",
+      icon: getAppIcon(),
+      show: true,
+      webPreferences: {
+        preload: preloadPath,
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
 
-  setupWindow.on("closed", () => {
-    setupWindow = null;
-  });
+    logToFile("setupWindow created successfully");
+
+    setupWindow.webContents.on("did-fail-load", (_event, code, desc, url) => {
+      logToFile(`[setupWindow did-fail-load] code: ${code}, desc: ${desc}, url: ${url}`);
+    });
+
+    setupWindow.loadFile(htmlPath).then(() => {
+      logToFile("setupWindow.loadFile succeeded");
+    }).catch((err) => {
+      logToFile(`[setupWindow loadFile error] ${err.stack || err.message}`);
+    });
+
+    setupWindow.setMenuBarVisibility(false);
+
+    setupWindow.on("closed", () => {
+      logToFile("setupWindow closed");
+      setupWindow = null;
+    });
+  } catch (err) {
+    logToFile(`[openSetupWindow EXCEPTION] ${err.stack || err.message}`);
+  }
 }
 
 function buildAppMenu() {
@@ -293,13 +393,28 @@ function buildAppMenu() {
       label: "ช่วยเหลือ (Help)",
       submenu: [
         {
+          label: "ดู Log การทำงาน (Open Log File)",
+          click: () => {
+            if (fs.existsSync(logFilePath)) {
+              shell.openPath(logFilePath);
+            } else {
+              dialog.showMessageBox(mainWindow || setupWindow, {
+                type: "info",
+                title: "Log",
+                message: "ยังไม่มีไฟล์ log อยู่ที่: " + logFilePath,
+              });
+            }
+          },
+        },
+        { type: "separator" },
+        {
           label: "เกี่ยวกับโปรแกรม (About FMS MCU)",
           click: () => {
-            dialog.showMessageBox(mainWindow, {
+            dialog.showMessageBox(mainWindow || setupWindow, {
               type: "info",
               title: "คณะวิทยาการจัดการ มจร",
               message: "ระบบสารสนเทศเพื่อการบริหารจัดการ\nคณะวิทยาการจัดการ มหาวิทยาลัยมหาจุฬาลงกรณราชวิทยาลัย",
-              detail: "เวอร์ชัน 1.0.0 (Windows Desktop Client)\nขับเคลื่อนด้วย Next.js 16, React 19 และ PostgreSQL",
+              detail: "เวอร์ชัน 0.1.0 (Windows Desktop Client)\nขับเคลื่อนด้วย Next.js 16, React 19 และ PostgreSQL",
             });
           },
         },
@@ -314,7 +429,10 @@ function buildAppMenu() {
 // IPC Handlers
 ipcMain.handle("test-db-connection", async (_event, config) => {
   const { host, port } = config;
-  return checkPortReachable(host, port, 4000);
+  logToFile(`Testing connection to ${host}:${port}`);
+  const res = await checkPortReachable(host, port, 4000);
+  logToFile(`Test connection result: ${JSON.stringify(res)}`);
+  return res;
 });
 
 ipcMain.handle("get-db-config", async () => {
@@ -350,7 +468,11 @@ ipcMain.handle("save-db-config", async (_event, config) => {
       "",
     ].join("\n");
 
+    if (!fs.existsSync(userDataDir)) {
+      fs.mkdirSync(userDataDir, { recursive: true });
+    }
     fs.writeFileSync(configFilePath, content, "utf8");
+    logToFile(`Saved new database config to ${configFilePath}`);
 
     // Launch Next server
     const appUrl = await startNextServer({
@@ -366,6 +488,7 @@ ipcMain.handle("save-db-config", async (_event, config) => {
     createMainWindow(appUrl);
     return { ok: true };
   } catch (err) {
+    logToFile(`Save db config error: ${err.message}`);
     return { ok: false, error: err.message || String(err) };
   }
 });
@@ -379,22 +502,30 @@ ipcMain.on("close-setup", () => {
 
 // App lifecycle
 app.whenReady().then(async () => {
+  logToFile("================ APP LAUNCH ================");
+  logToFile(`isPackaged: ${app.isPackaged}, execPath: ${process.execPath}`);
+  logToFile(`userDataDir: ${userDataDir}`);
+
   let envs = {};
   if (fs.existsSync(configFilePath)) {
     envs = parseEnvFile(configFilePath);
+    logToFile(`Loaded configuration from ${configFilePath}`);
   } else if (isDev && fs.existsSync(path.join(__dirname, "../.env"))) {
     envs = parseEnvFile(path.join(__dirname, "../.env"));
+    logToFile("Loaded dev environment from .env");
   }
 
   if (envs.DATABASE_URL) {
     try {
+      logToFile("Found DATABASE_URL, attempting to start server...");
       const appUrl = await startNextServer(envs);
       createMainWindow(appUrl);
     } catch (err) {
-      console.error("Failed to auto-start server:", err);
+      logToFile(`Auto-start failed: ${err.message}. Showing setup window.`);
       openSetupWindow();
     }
   } else {
+    logToFile("No DATABASE_URL found. Showing setup window.");
     openSetupWindow();
   }
 
