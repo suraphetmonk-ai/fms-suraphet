@@ -8,8 +8,15 @@ import { SUPER_ADMIN_CODE } from "../../permissions";
 import { issueToken, consumeToken, TOKEN_TTL } from "../tokens";
 import { writeAudit } from "../audit";
 import { passwordSetupEmail, emailChangeEmail } from "../email-templates";
-import type { ListUsersQuery, RoleAssignment } from "../validations/users";
+import type { ListUsersQuery, RoleAssignment, ImportUserRow } from "../validations/users";
 import type { ScopeType } from "../grants";
+
+export interface ImportUsersResult {
+  total: number;
+  success: number;
+  failed: number;
+  errors: { row: number; email: string; message: string }[];
+}
 
 export interface UserListItem {
   id: string; email: string; name: string; isActive: boolean; mustChangePassword: boolean; lastLoginAt: string | null;
@@ -197,4 +204,176 @@ export async function confirmEmailChange(raw: string): Promise<boolean> {
     }
   });
   return true;
+}
+
+export async function exportUsersCsv(tenantId: string): Promise<string> {
+  const rows = await prisma.userTenant.findMany({
+    where: { tenantId },
+    orderBy: { user: { name: "asc" } },
+    include: {
+      user: true,
+      userRoles: {
+        include: {
+          role: { select: { code: true } },
+        },
+      },
+    },
+  });
+
+  const header = "name,email,role,status";
+  const escapeCsv = (val: string) => {
+    if (val.includes('"') || val.includes(",") || val.includes("\n") || val.includes("\r")) {
+      return `"${val.replace(/"/g, '""')}"`;
+    }
+    return `"${val}"`;
+  };
+
+  const lines = rows.map((r) => {
+    const name = r.user.name ?? "";
+    const email = r.user.email ?? "";
+    const roles = r.userRoles.map((ur) => ur.role.code).join("; ");
+    const status = r.isActive && r.user.isActive ? "active" : "inactive";
+    return [escapeCsv(name), escapeCsv(email), escapeCsv(roles), escapeCsv(status)].join(",");
+  });
+
+  return "\uFEFF" + [header, ...lines].join("\r\n");
+}
+
+export async function importUsersCsv(actor: Actor, rows: ImportUserRow[]): Promise<ImportUsersResult> {
+  const tenantRoles = await prisma.role.findMany({
+    where: { tenantId: actor.tenantId },
+    include: {
+      rolePermissions: {
+        select: { permission: { select: { code: true } } },
+      },
+    },
+  });
+  const roleMap = new Map(tenantRoles.map((r) => [r.code.toUpperCase(), r]));
+  const actorPermissions = new Set(actor.permissions);
+
+  const canAssignRole = (role: (typeof tenantRoles)[number]) => {
+    if (actor.isSuperAdmin) return true;
+    if (role.code === SUPER_ADMIN_CODE) return false;
+    return role.rolePermissions.every((rp) => actorPermissions.has(rp.permission.code));
+  };
+
+  const normalizedEmails = rows.map((r) => r.email.trim().toLowerCase());
+  const existingUsers = await prisma.user.findMany({
+    where: { email: { in: normalizedEmails } },
+    select: { email: true },
+  });
+  const existingEmails = new Set(existingUsers.map((u) => u.email.toLowerCase()));
+
+  const seenInFile = new Set<string>();
+  const errs: { row: number; email: string; message: string }[] = [];
+  let successCount = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const rowNum = i + 1;
+    const row = rows[i];
+    const email = row.email.trim().toLowerCase();
+    const name = row.name.trim();
+    const roleCode = row.roleCode.trim().toUpperCase();
+    const status = row.status === "inactive" ? "inactive" : "active";
+    const isActive = status === "active";
+
+    if (!name) {
+      errs.push({ row: rowNum, email, message: "name_required" });
+      continue;
+    }
+    if (!email || !email.includes("@")) {
+      errs.push({ row: rowNum, email, message: "invalid_email" });
+      continue;
+    }
+    if (seenInFile.has(email)) {
+      errs.push({ row: rowNum, email, message: "duplicate_email_in_file" });
+      continue;
+    }
+    seenInFile.add(email);
+
+    if (existingEmails.has(email)) {
+      errs.push({ row: rowNum, email, message: "email_already_exists" });
+      continue;
+    }
+
+    const role = roleMap.get(roleCode);
+    if (!role) {
+      errs.push({ row: rowNum, email, message: "role_not_found" });
+      continue;
+    }
+
+    if (!canAssignRole(role)) {
+      if (role.code === SUPER_ADMIN_CODE) {
+        errs.push({ row: rowNum, email, message: "super_admin_protected" });
+      } else {
+        errs.push({ row: rowNum, email, message: "cannot_grant_unheld_permission" });
+      }
+      continue;
+    }
+
+    try {
+      const { rawToken } = await prisma.$transaction(async (tx) => {
+        const u = await tx.user.create({
+          data: {
+            email,
+            name,
+            isActive,
+          },
+        });
+        const ut = await tx.userTenant.create({
+          data: {
+            userId: u.id,
+            tenantId: actor.tenantId,
+            isActive,
+          },
+        });
+        await tx.userRole.create({
+          data: {
+            userTenantId: ut.id,
+            roleId: role.id,
+            scopeType: "ALL",
+            scopeId: null,
+          },
+        });
+        const { raw } = await issueToken(
+          { userId: u.id, purpose: "PASSWORD_RESET", ttlMs: TOKEN_TTL.PASSWORD_SETUP },
+          tx,
+        );
+        await writeAudit(
+          {
+            tenantId: actor.tenantId,
+            actorId: actor.actorId,
+            action: "user.create",
+            entity: "user",
+            entityId: u.id,
+            after: { email, name, role: role.code, status, imported: true },
+          },
+          tx,
+        );
+        return { user: u, rawToken: raw };
+      });
+
+      existingEmails.add(email);
+      successCount += 1;
+
+      // Send setup email in background
+      void sendMail(
+        {
+          to: email,
+          ...passwordSetupEmail("th", { name, link: setupLink(rawToken), hours: 72 }),
+        },
+        actor.tenantId,
+      );
+    } catch (err) {
+      logger.error("importUsersCsv: create failed", { email, error: err });
+      errs.push({ row: rowNum, email, message: "create_failed" });
+    }
+  }
+
+  return {
+    total: rows.length,
+    success: successCount,
+    failed: errs.length,
+    errors: errs,
+  };
 }

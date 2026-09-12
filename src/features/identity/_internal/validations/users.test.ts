@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createUserSchema, updateUserSchema } from "./users";
+import { createUserSchema, updateUserSchema, importUsersSchema } from "./users";
 
 const ROLE_A = "11111111-1111-4111-8111-111111111111";
 const ROLE_B = "22222222-2222-4222-8222-222222222222";
@@ -24,5 +24,36 @@ describe("roleAssignments — กันบทบาทซ้ำในคำข�
   it("updateUser: กฎเดียวกันเมื่อส่ง roles มาด้วย และไม่บังคับเมื่อไม่ส่ง", () => {
     expect(updateUserSchema.safeParse({ userId: ROLE_A, roles: [assign(ROLE_B), assign(ROLE_B)] }).success).toBe(false);
     expect(updateUserSchema.safeParse({ userId: ROLE_A, name: "A" }).success).toBe(true);
+  });
+});
+
+describe("importUsersSchema — ตรวจสอบโครงสร้างข้อมูลนำเข้าจาก CSV", () => {
+  it("แถวข้อมูลถูกต้อง → ผ่าน", () => {
+    const r = importUsersSchema.safeParse({
+      rows: [
+        { name: "สมชาย ใจดี", email: "somchai@example.com", roleCode: "ADMIN", status: "active" },
+        { name: "สมหญิง รักเรียน", email: "somying@example.com", roleCode: "STAFF", status: "inactive" },
+      ],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("อีเมลผิดรูปแบบ → validation ล้ม", () => {
+    const r = importUsersSchema.safeParse({
+      rows: [{ name: "สมชาย", email: "invalid-email", roleCode: "ADMIN" }],
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("ชื่อว่างเปล่า → validation ล้ม", () => {
+    const r = importUsersSchema.safeParse({
+      rows: [{ name: "   ", email: "user@example.com", roleCode: "STAFF" }],
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("ไม่มีแถวข้อมูล (empty rows) → validation ล้ม", () => {
+    const r = importUsersSchema.safeParse({ rows: [] });
+    expect(r.success).toBe(false);
   });
 });
