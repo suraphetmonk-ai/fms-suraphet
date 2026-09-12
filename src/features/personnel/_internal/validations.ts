@@ -35,3 +35,18 @@ export const updatePersonnelSchema = createPersonnelSchema.extend({
 
 export type CreatePersonnelInput = z.infer<typeof createPersonnelSchema>;
 export type UpdatePersonnelInput = z.infer<typeof updatePersonnelSchema>;
+
+export const createDepartmentSchema = z.object({
+  code: z.string().min(1, "กรุณากรอกรหัสภาควิชา/ส่วนงาน").max(50),
+  nameTh: z.string().min(1, "กรุณากรอกชื่อภาควิชาภาษาไทย").max(255),
+  nameEn: z.string().min(1, "Please enter English department name").max(255),
+  orderIndex: z.coerce.number().default(0),
+});
+
+export const updateDepartmentSchema = createDepartmentSchema.extend({
+  id: z.string().uuid(),
+});
+
+export type CreateDepartmentInput = z.infer<typeof createDepartmentSchema>;
+export type UpdateDepartmentInput = z.infer<typeof updateDepartmentSchema>;
+

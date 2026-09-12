@@ -2,13 +2,29 @@ import { prisma } from "@/shared/lib/infra/prisma";
 import type { Prisma } from "@/generated/prisma";
 import { encryptCitizenId, decryptCitizenId, maskCitizenId } from "@/shared/lib/security/pdpa";
 import { errors } from "@/shared/lib/errors";
-import type { CreatePersonnelInput, UpdatePersonnelInput } from "./validations";
+import type {
+  CreatePersonnelInput,
+  UpdatePersonnelInput,
+  CreateDepartmentInput,
+  UpdateDepartmentInput,
+} from "./validations";
 
 export interface DepartmentDto {
   id: string;
   nameTh: string;
   nameEn: string;
   code: string;
+  orderIndex?: number;
+  programsCount?: number;
+  personnelCount?: number;
+  programs?: {
+    id: string;
+    code: string;
+    nameTh: string;
+    nameEn: string;
+    degreeLevel: string;
+    status: string;
+  }[];
 }
 
 export interface AcademicWorkDto {
@@ -86,7 +102,156 @@ export async function listDepartments(tenantId: string): Promise<DepartmentDto[]
     nameTh: r.nameTh,
     nameEn: r.nameEn,
     code: r.code,
+    orderIndex: r.orderIndex,
   }));
+}
+
+export async function listDepartmentsWithDetails(tenantId: string): Promise<DepartmentDto[]> {
+  await ensureDefaultDepartments(tenantId);
+  const rows = await prisma.department.findMany({
+    where: { tenantId },
+    include: {
+      programs: {
+        select: {
+          id: true,
+          code: true,
+          nameTh: true,
+          nameEn: true,
+          degreeLevel: true,
+          status: true,
+        },
+        orderBy: { code: "asc" },
+      },
+      _count: {
+        select: {
+          programs: true,
+          personnel: true,
+        },
+      },
+    },
+    orderBy: { orderIndex: "asc" },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    nameTh: r.nameTh,
+    nameEn: r.nameEn,
+    code: r.code,
+    orderIndex: r.orderIndex,
+    programsCount: r._count.programs,
+    personnelCount: r._count.personnel,
+    programs: r.programs,
+  }));
+}
+
+export async function createDepartment(
+  tenantId: string,
+  input: CreateDepartmentInput
+): Promise<DepartmentDto> {
+  const existing = await prisma.department.findUnique({
+    where: { tenantId_code: { tenantId, code: input.code.trim() } },
+  });
+  if (existing) {
+    throw new Error("รหัสภาควิชา/ส่วนงานนี้มีอยู่ในระบบแล้ว (Duplicate Department Code)");
+  }
+
+  const created = await prisma.department.create({
+    data: {
+      tenantId,
+      code: input.code.trim(),
+      nameTh: input.nameTh.trim(),
+      nameEn: input.nameEn.trim(),
+      orderIndex: input.orderIndex,
+    },
+  });
+
+  return {
+    id: created.id,
+    code: created.code,
+    nameTh: created.nameTh,
+    nameEn: created.nameEn,
+    orderIndex: created.orderIndex,
+    programsCount: 0,
+    personnelCount: 0,
+    programs: [],
+  };
+}
+
+export async function updateDepartment(
+  tenantId: string,
+  input: UpdateDepartmentInput
+): Promise<DepartmentDto> {
+  const existing = await prisma.department.findUnique({
+    where: { id: input.id },
+  });
+  if (!existing || existing.tenantId !== tenantId) {
+    throw new Error("Department not found");
+  }
+
+  // Check code uniqueness if changed
+  if (existing.code !== input.code.trim()) {
+    const dup = await prisma.department.findUnique({
+      where: { tenantId_code: { tenantId, code: input.code.trim() } },
+    });
+    if (dup && dup.id !== input.id) {
+      throw new Error("รหัสภาควิชา/ส่วนงานนี้มีอยู่ในระบบแล้ว (Duplicate Department Code)");
+    }
+  }
+
+  const updated = await prisma.department.update({
+    where: { id: input.id },
+    data: {
+      code: input.code.trim(),
+      nameTh: input.nameTh.trim(),
+      nameEn: input.nameEn.trim(),
+      orderIndex: input.orderIndex,
+    },
+    include: {
+      programs: {
+        select: {
+          id: true,
+          code: true,
+          nameTh: true,
+          nameEn: true,
+          degreeLevel: true,
+          status: true,
+        },
+      },
+      _count: {
+        select: {
+          programs: true,
+          personnel: true,
+        },
+      },
+    },
+  });
+
+  return {
+    id: updated.id,
+    code: updated.code,
+    nameTh: updated.nameTh,
+    nameEn: updated.nameEn,
+    orderIndex: updated.orderIndex,
+    programsCount: updated._count.programs,
+    personnelCount: updated._count.personnel,
+    programs: updated.programs,
+  };
+}
+
+export async function deleteDepartment(tenantId: string, id: string): Promise<void> {
+  const existing = await prisma.department.findUnique({
+    where: { id },
+    include: { _count: { select: { programs: true, personnel: true } } },
+  });
+  if (!existing || existing.tenantId !== tenantId) {
+    throw new Error("Department not found");
+  }
+
+  if (existing._count.programs > 0) {
+    throw new Error("ไม่สามารถลบภาควิชานี้ได้ เนื่องจากมีหลักสูตรสังกัดอยู่ กรุณาย้ายหลักสูตรออกก่อน");
+  }
+
+  await prisma.department.delete({ where: { id } });
 }
 
 type PersonnelProfileWithRelations = Prisma.PersonnelProfileGetPayload<{
