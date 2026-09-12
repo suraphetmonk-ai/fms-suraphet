@@ -105,9 +105,10 @@ Translate and adapt the provided Thai news article into natural, formal, and gra
 
 Rules:
 1. "titleEn": Professional, captivating, and concise English title.
-2. "excerptEn": Engaging 1-2 sentence English summary for cards and preview snippets.
-3. "contentEn": Full English article body matching the structure and paragraph breaks of the Thai content. Maintain respectful titles (e.g., Asst. Prof. Dr., Phra, etc.) and academic conventions.
+2. "excerptEn": Engaging 1-2 sentence English summary for cards and preview snippets (plain text).
+3. "contentEn": Full English article body matching the structure and formatting of the Thai content. If the Thai content contains HTML tags (e.g. from Tiny Editor like <p>, <strong>, <em>, <ul>, <li>, <table>, <a>), preserve and match the corresponding HTML tags in the English content. Maintain respectful titles (e.g., Asst. Prof. Dr., Phra, etc.) and academic conventions.
 4. "slug": Clean, SEO-friendly English URL slug in lowercase with hyphens (e.g. "teacher-appreciation-day-2026").
+
 
 Respond strictly in valid JSON format:
 {

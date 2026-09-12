@@ -85,9 +85,17 @@ export default async function PublicNewsDetailPage({
       )}
 
       {/* Article Content */}
-      <div className="prose prose-neutral dark:prose-invert max-w-none text-foreground leading-relaxed whitespace-pre-line text-base">
-        {isTh ? article.contentTh : article.contentEn}
-      </div>
+      {/<[a-z][\s\S]*>/i.test(isTh ? article.contentTh : article.contentEn) ? (
+        <div
+          className="prose prose-neutral dark:prose-invert max-w-none text-foreground leading-relaxed text-base"
+          dangerouslySetInnerHTML={{ __html: isTh ? article.contentTh : article.contentEn }}
+        />
+      ) : (
+        <div className="prose prose-neutral dark:prose-invert max-w-none text-foreground leading-relaxed whitespace-pre-line text-base">
+          {isTh ? article.contentTh : article.contentEn}
+        </div>
+      )}
+
 
       {/* Footer / Share */}
       <footer className="border-t pt-6 flex items-center justify-between">

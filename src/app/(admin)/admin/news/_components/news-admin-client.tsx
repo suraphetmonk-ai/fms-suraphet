@@ -23,6 +23,8 @@ import {
   getArticlesAction,
   translateNewsWithGeminiAction,
 } from "@/features/news/actions";
+import { TinyEditor } from "@/components/ui/tiny-editor";
+
 
 
 interface Props {
@@ -514,25 +516,26 @@ export function NewsAdminClient({
               </LiyonField>
             </div>
 
-            <LiyonField label={t("news.contentTh")}>
-              <textarea
-                rows={6}
+            <LiyonField label={t("news.contentTh") + " *"}>
+              <TinyEditor
+                id="news-content-th"
                 value={formData.contentTh}
-                onChange={(e) => setFormData({ ...formData, contentTh: e.target.value })}
-                placeholder="เนื้อหาข่าวแบบละเอียด (รองรับข้อความหลายย่อหน้า)..."
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-sans"
+                onChange={(val) => setFormData((prev) => ({ ...prev, contentTh: val }))}
+                placeholder="พิมพ์เนื้อหาข่าว จัดรูปแบบข้อความ ตัวหนา หัวข้อ ตาราง แทรกภาพ และลิงก์..."
+                height={350}
               />
             </LiyonField>
 
             <LiyonField label={t("news.contentEn")}>
-              <textarea
-                rows={5}
+              <TinyEditor
+                id="news-content-en"
                 value={formData.contentEn}
-                onChange={(e) => setFormData({ ...formData, contentEn: e.target.value })}
-                placeholder="English news content details..."
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-sans"
+                onChange={(val) => setFormData((prev) => ({ ...prev, contentEn: val }))}
+                placeholder="English news content details, or generate automatically using the AI Assistant above..."
+                height={300}
               />
             </LiyonField>
+
 
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2 border-t">
