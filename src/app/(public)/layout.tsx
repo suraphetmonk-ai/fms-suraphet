@@ -26,6 +26,13 @@ export default async function PublicPortalLayout({
     ? "มหาวิทยาลัยแห่งการเรียนรู้และการวิจัย"
     : "University Faculty Portal";
 
+  const contact = tenantSettings?.contact;
+  const address = isTh
+    ? contact?.addressTh || "อาคารบริหารและเรียนรวม คณะวิทยาการจัดการ มหาวิทยาลัย"
+    : contact?.addressEn || contact?.addressTh || "Faculty Management Building, University Campus";
+  const phone = contact?.phone || "";
+  const email = contact?.email || "";
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Top Navbar matching Admin styling with Portal menus & Avatar menu */}
@@ -57,9 +64,50 @@ export default async function PublicPortalLayout({
                 ? "มุ่งมั่นผลิตบัณฑิตที่มีทักษะการวิจัย นวัตกรรมซอฟต์แวร์ และปัญญาประดิษฐ์ เพื่อขับเคลื่อนสังคมและเศรษฐกิจดิจิทัลระดับสากล"
                 : "Dedicated to producing graduates with advanced research, software innovation, and AI capabilities for the global digital economy."}
             </p>
-            <div className="text-xs text-muted-foreground/80 space-y-1 pt-2">
-              <div>📍 {isTh ? "อาคารเทคโนโลยีสารสนเทศ มหาวิทยาลัย" : "IT Building, University Campus"}</div>
-              <div>📞 02-xxx-xxxx | ✉️ contact@fms.ac.th</div>
+            <div className="text-xs text-muted-foreground/90 space-y-1.5 pt-2">
+              <div className="flex items-start gap-1.5">
+                <span className="shrink-0 text-primary">📍</span>
+                <span>{address}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                {phone && (
+                  <a href={`tel:${phone}`} className="inline-flex items-center gap-1 hover:text-primary transition-colors">
+                    <span>📞</span>
+                    <span>{phone}</span>
+                  </a>
+                )}
+                {email && (
+                  <a href={`mailto:${email}`} className="inline-flex items-center gap-1 hover:text-primary transition-colors">
+                    <span>✉️</span>
+                    <span>{email}</span>
+                  </a>
+                )}
+                {contact?.officeHours && (
+                  <div className="inline-flex items-center gap-1 text-muted-foreground/80">
+                    <span>🕒</span>
+                    <span>{contact.officeHours}</span>
+                  </div>
+                )}
+              </div>
+              {(contact?.facebook || contact?.lineId) && (
+                <div className="flex items-center gap-2 pt-1">
+                  {contact.facebook && (
+                    <a
+                      href={contact.facebook.startsWith("http") ? contact.facebook : `https://${contact.facebook}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
+                    >
+                      <span>Facebook</span>
+                    </a>
+                  )}
+                  {contact.lineId && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <span>Line: {contact.lineId}</span>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -80,12 +128,12 @@ export default async function PublicPortalLayout({
               </li>
               <li>
                 <Link href="/programs" className="hover:text-primary transition-colors">
-                  {isTh ? "หลักสูตรระดับปริญญาตรี" : "Undergraduate"}
+                  {isTh ? "หลักสูตรการศึกษา" : "Degree Programs"}
                 </Link>
               </li>
               <li>
-                <Link href="/programs" className="hover:text-primary transition-colors">
-                  {isTh ? "หลักสูตรระดับบัณฑิตศึกษา" : "Graduate Programs"}
+                <Link href="/contact" className="hover:text-primary font-medium text-primary transition-colors">
+                  {isTh ? "📞 ติดต่อเราและสถานที่ตั้ง" : "📞 Contact & Location"}
                 </Link>
               </li>
               <li>

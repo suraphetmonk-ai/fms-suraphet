@@ -13,6 +13,7 @@ const PUBLIC_PREFIXES = [
   "/programs",
   "/verify-student",
   "/bookings",
+  "/contact",
 ];
 const GUEST_ONLY = ["/login", "/forgot-password"];
 

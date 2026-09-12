@@ -4,6 +4,7 @@ import { formatDate } from "@/shared/lib/format";
 import { listPublishedArticles } from "@/features/news/server";
 import { listPublicPersonnel } from "@/features/personnel/server";
 import { listPublicPrograms } from "@/features/curriculum/server";
+import { getTenantSettings } from "@/features/identity/server";
 import { prisma } from "@/shared/lib/infra/prisma";
 import {
   GraduationCap,
@@ -16,6 +17,10 @@ import {
   Sparkles,
   ChevronRight,
   CheckCircle2,
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -28,13 +33,14 @@ export default async function PublicHomePage() {
   const tenantId = tenant?.id;
 
   // Parallel fetch public content
-  const [articles, personnel, programs] = tenantId
+  const [articles, personnel, programs, tenantSettings] = tenantId
     ? await Promise.all([
         listPublishedArticles(tenantId, 6),
         listPublicPersonnel(tenantId),
         listPublicPrograms(tenantId),
+        getTenantSettings(tenantId).catch(() => null),
       ])
-    : [[], [], []];
+    : [[], [], [], null];
 
   // Executive members (lowest orderIndex)
   const executives = personnel.slice(0, 4);
@@ -335,6 +341,81 @@ export default async function PublicHomePage() {
               </div>
             ))
           )}
+        </div>
+      </section>
+
+      {/* 6. Campus Contact & Location Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider font-semibold text-primary">
+              {isTh ? "การเดินทางและการติดต่อ" : "Campus & Contact"}
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-1">
+              {isTh ? "ติดต่อเราและสถานที่ตั้ง" : "Visit Us & Get in Touch"}
+            </h2>
+          </div>
+          <Button asChild variant="ghost" className="gap-1 text-primary">
+            <Link href="/contact">
+              <span>{isTh ? "ดูข้อมูลติดต่อทั้งหมด" : "Full Contact Info"}</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="rounded-xl border bg-card p-6 space-y-3 shadow-xs">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <h3 className="font-bold text-sm text-foreground">
+              {isTh ? "สถานที่ตั้งคณะ" : "Faculty Location"}
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {isTh
+                ? tenantSettings?.contact?.addressTh || "เลขที่ 123 อาคารเรียนรวมและบริหาร คณะวิทยาการจัดการ มหาวิทยาลัยนครพนม ต.ขามเฒ่า อ.เมือง จ.นครพนม 48000"
+                : tenantSettings?.contact?.addressEn || tenantSettings?.contact?.addressTh || "123 Management Science Building, Nakhon Phanom University, 48000"}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-card p-6 space-y-3 shadow-xs">
+            <div className="h-10 w-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Phone className="h-5 w-5" />
+            </div>
+            <h3 className="font-bold text-sm text-foreground">
+              {isTh ? "โทรศัพท์และเวลาทำการ" : "Telephone & Hours"}
+            </h3>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <div>📞 {tenantSettings?.contact?.phone || "042-532-xxx"}</div>
+              {tenantSettings?.contact?.fax && <div>📠 {tenantSettings.contact.fax}</div>}
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span>{tenantSettings?.contact?.officeHours || (isTh ? "จันทร์ - ศุกร์: 08:30 - 16:30 น." : "Mon - Fri: 08:30 - 16:30")}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card p-6 space-y-3 shadow-xs">
+            <div className="h-10 w-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <Mail className="h-5 w-5" />
+            </div>
+            <h3 className="font-bold text-sm text-foreground">
+              {isTh ? "อีเมลและช่องทางออนไลน์" : "Email & Online"}
+            </h3>
+            <div className="space-y-1.5 text-xs">
+              <div className="text-muted-foreground">✉️ {tenantSettings?.contact?.email || "contact@fms.npu.ac.th"}</div>
+              {tenantSettings?.contact?.facebook && (
+                <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                  🌐 Facebook: {tenantSettings.contact.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\/?/, "") || "Official Page"}
+                </div>
+              )}
+              {tenantSettings?.contact?.lineId && (
+                <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                  💬 Line: {tenantSettings.contact.lineId}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
     </div>

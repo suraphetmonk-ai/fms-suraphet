@@ -109,5 +109,38 @@ describe("updateSettingsSchema", () => {
     });
     expect(r.success).toBe(false);
   });
+
+  it("ยอมรับข้อมูลการติดต่อที่ถูกต้อง", () => {
+    const r = updateSettingsSchema.safeParse({
+      nameTh: "คณะวิทยาการจัดการ",
+      nameEn: "Faculty of Management Science",
+      palette: "blue",
+      contact: {
+        addressTh: "เลขที่ 123 อาคารเรียนรวม",
+        addressEn: "123 Academic Building",
+        phone: "042-532-111",
+        email: "fms@npu.ac.th",
+        facebook: "https://facebook.com/fms.npu",
+        lineId: "@fms_npu",
+      },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.contact?.phone).toBe("042-532-111");
+      expect(r.data.contact?.email).toBe("fms@npu.ac.th");
+    }
+  });
+
+  it("ปฏิเสธเมื่ออีเมลติดต่อไม่ถูกต้อง", () => {
+    const r = updateSettingsSchema.safeParse({
+      nameTh: "คณะวิทยาการจัดการ",
+      nameEn: "Faculty of Management Science",
+      palette: "blue",
+      contact: {
+        email: "not-an-email",
+      },
+    });
+    expect(r.success).toBe(false);
+  });
 });
 

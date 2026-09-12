@@ -2,7 +2,7 @@
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Upload, X, Image as ImageIcon, Loader2, Mail, Send, Eye, EyeOff, HelpCircle } from "lucide-react";
+import { Upload, X, Image as ImageIcon, Loader2, Mail, Send, Eye, EyeOff, HelpCircle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiyonCard, LiyonField, LiyonSwitchRow, PalettePicker } from "@/shared/components/liyon";
 import { useT } from "@/shared/lib/i18n/client";
@@ -27,6 +27,17 @@ export function SettingsForm({ initial }: { initial: TenantSettings }) {
       fromName: initial.smtp?.fromName ?? "",
       port: initial.smtp?.port ?? 465,
       secure: initial.smtp?.secure ?? true,
+    },
+    contact: {
+      addressTh: initial.contact?.addressTh ?? "",
+      addressEn: initial.contact?.addressEn ?? "",
+      phone: initial.contact?.phone ?? "",
+      email: initial.contact?.email ?? "",
+      fax: initial.contact?.fax ?? "",
+      officeHours: initial.contact?.officeHours ?? "",
+      facebook: initial.contact?.facebook ?? "",
+      lineId: initial.contact?.lineId ?? "",
+      mapEmbedUrl: initial.contact?.mapEmbedUrl ?? "",
     },
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -200,6 +211,127 @@ export function SettingsForm({ initial }: { initial: TenantSettings }) {
                   disabled={uploading || pending}
                 />
               </div>
+            </LiyonField>
+          </div>
+        </LiyonCard>
+        <LiyonCard>
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin className="h-5 w-5 text-primary" />
+            <h2 className="!mb-0">{t("settings.contactTitle")}</h2>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">{t("settings.contactDesc")}</p>
+
+          <div className="fields space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <LiyonField label={t("settings.addressTh")} htmlFor="c-address-th" error={errors["contact.addressTh"]?.[0]}>
+                <textarea
+                  id="c-address-th"
+                  rows={3}
+                  placeholder="เช่น เลขที่ 123 อาคารเรียนรวมและบริหาร คณะวิทยาการจัดการ มหาวิทยาลัยนครพนม..."
+                  value={form.contact.addressTh}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, addressTh: e.target.value } })}
+                  disabled={pending || uploading}
+                  className="w-full text-sm p-2 border rounded-md"
+                />
+              </LiyonField>
+
+              <LiyonField label={t("settings.addressEn")} htmlFor="c-address-en" error={errors["contact.addressEn"]?.[0]}>
+                <textarea
+                  id="c-address-en"
+                  rows={3}
+                  placeholder="e.g. 123 Management Science Building, Nakhon Phanom University..."
+                  value={form.contact.addressEn}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, addressEn: e.target.value } })}
+                  disabled={pending || uploading}
+                  className="w-full text-sm p-2 border rounded-md"
+                />
+              </LiyonField>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <LiyonField label={t("settings.phone")} htmlFor="c-phone" error={errors["contact.phone"]?.[0]}>
+                <input
+                  id="c-phone"
+                  type="text"
+                  placeholder="042-532-xxx หรือ 02-xxx-xxxx"
+                  value={form.contact.phone}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, phone: e.target.value } })}
+                  disabled={pending || uploading}
+                />
+              </LiyonField>
+
+              <LiyonField label={t("settings.contactEmail")} htmlFor="c-email" error={errors["contact.email"]?.[0]}>
+                <input
+                  id="c-email"
+                  type="email"
+                  placeholder="contact@fms.npu.ac.th"
+                  value={form.contact.email}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, email: e.target.value } })}
+                  disabled={pending || uploading}
+                />
+              </LiyonField>
+
+              <LiyonField label={t("settings.fax")} htmlFor="c-fax" hint={t("common.optional")} error={errors["contact.fax"]?.[0]}>
+                <input
+                  id="c-fax"
+                  type="text"
+                  placeholder="042-532-xxx"
+                  value={form.contact.fax}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, fax: e.target.value } })}
+                  disabled={pending || uploading}
+                />
+              </LiyonField>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <LiyonField label={t("settings.officeHours")} htmlFor="c-office-hours" hint="เช่น จันทร์-ศุกร์ 08:30-16:30 น." error={errors["contact.officeHours"]?.[0]}>
+                <input
+                  id="c-office-hours"
+                  type="text"
+                  placeholder="จันทร์ - ศุกร์: 08:30 - 16:30 น."
+                  value={form.contact.officeHours}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, officeHours: e.target.value } })}
+                  disabled={pending || uploading}
+                />
+              </LiyonField>
+
+              <LiyonField label={t("settings.facebook")} htmlFor="c-facebook" hint="URL เพจ หรือ @ชื่อเพจ" error={errors["contact.facebook"]?.[0]}>
+                <input
+                  id="c-facebook"
+                  type="text"
+                  placeholder="https://facebook.com/fms.npu"
+                  value={form.contact.facebook}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, facebook: e.target.value } })}
+                  disabled={pending || uploading}
+                />
+              </LiyonField>
+
+              <LiyonField label={t("settings.lineId")} htmlFor="c-line" hint="เช่น @fms_npu" error={errors["contact.lineId"]?.[0]}>
+                <input
+                  id="c-line"
+                  type="text"
+                  placeholder="@fms_npu"
+                  value={form.contact.lineId}
+                  onChange={(e) => setForm({ ...form, contact: { ...form.contact, lineId: e.target.value } })}
+                  disabled={pending || uploading}
+                />
+              </LiyonField>
+            </div>
+
+            <LiyonField
+              label={t("settings.mapEmbedUrl")}
+              htmlFor="c-map"
+              hint="ใส่ลิงก์ Google Maps เพื่อให้ปุ่มนำทาง หรือใส่ iframe src จาก Google Maps Embed"
+              error={errors["contact.mapEmbedUrl"]?.[0]}
+            >
+              <input
+                id="c-map"
+                type="text"
+                placeholder="https://maps.google.com/?q=... หรือ https://www.google.com/maps/embed?pb=..."
+                value={form.contact.mapEmbedUrl}
+                onChange={(e) => setForm({ ...form, contact: { ...form.contact, mapEmbedUrl: e.target.value } })}
+                disabled={pending || uploading}
+              />
             </LiyonField>
           </div>
         </LiyonCard>

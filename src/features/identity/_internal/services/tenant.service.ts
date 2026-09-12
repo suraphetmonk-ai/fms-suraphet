@@ -16,6 +16,18 @@ export interface TenantSmtpSettings {
   secure: boolean;
 }
 
+export interface TenantContactSettings {
+  addressTh?: string;
+  addressEn?: string;
+  phone?: string;
+  email?: string;
+  fax?: string;
+  officeHours?: string;
+  facebook?: string;
+  lineId?: string;
+  mapEmbedUrl?: string;
+}
+
 export interface TenantSettings {
   code: string;
   nameTh: string;
@@ -23,6 +35,7 @@ export interface TenantSettings {
   logoUrl: string | null;
   palette: PaletteId;
   smtp?: TenantSmtpSettings;
+  contact?: TenantContactSettings;
 }
 
 async function readTenantSettings(tenantId: string, db: Db): Promise<TenantSettings> {
@@ -31,6 +44,7 @@ async function readTenantSettings(tenantId: string, db: Db): Promise<TenantSetti
   const settingsObj = (t.settings && typeof t.settings === "object" ? t.settings : {}) as Record<string, unknown>;
   const p = settingsObj.palette;
   const rawSmtp = settingsObj.smtp as Record<string, unknown> | undefined;
+  const rawContact = settingsObj.contact as Record<string, unknown> | undefined;
 
   let smtp: TenantSmtpSettings | undefined = undefined;
   if (rawSmtp && typeof rawSmtp === "object") {
@@ -46,6 +60,21 @@ async function readTenantSettings(tenantId: string, db: Db): Promise<TenantSetti
     };
   }
 
+  let contact: TenantContactSettings | undefined = undefined;
+  if (rawContact && typeof rawContact === "object") {
+    contact = {
+      addressTh: typeof rawContact.addressTh === "string" ? rawContact.addressTh : "",
+      addressEn: typeof rawContact.addressEn === "string" ? rawContact.addressEn : "",
+      phone: typeof rawContact.phone === "string" ? rawContact.phone : "",
+      email: typeof rawContact.email === "string" ? rawContact.email : "",
+      fax: typeof rawContact.fax === "string" ? rawContact.fax : "",
+      officeHours: typeof rawContact.officeHours === "string" ? rawContact.officeHours : "",
+      facebook: typeof rawContact.facebook === "string" ? rawContact.facebook : "",
+      lineId: typeof rawContact.lineId === "string" ? rawContact.lineId : "",
+      mapEmbedUrl: typeof rawContact.mapEmbedUrl === "string" ? rawContact.mapEmbedUrl : "",
+    };
+  }
+
   return {
     code: t.code,
     nameTh: t.nameTh,
@@ -53,6 +82,7 @@ async function readTenantSettings(tenantId: string, db: Db): Promise<TenantSetti
     logoUrl: t.logoUrl,
     palette: isPalette(p) ? p : DEFAULT_PALETTE,
     smtp,
+    contact,
   };
 }
 
@@ -89,10 +119,26 @@ export async function updateTenantSettings(input: { tenantId: string; actorId: s
       };
     }
 
+    let newContact = currentSettings.contact;
+    if (input.contact) {
+      newContact = {
+        addressTh: input.contact.addressTh?.trim() || "",
+        addressEn: input.contact.addressEn?.trim() || "",
+        phone: input.contact.phone?.trim() || "",
+        email: input.contact.email?.trim() || "",
+        fax: input.contact.fax?.trim() || "",
+        officeHours: input.contact.officeHours?.trim() || "",
+        facebook: input.contact.facebook?.trim() || "",
+        lineId: input.contact.lineId?.trim() || "",
+        mapEmbedUrl: input.contact.mapEmbedUrl?.trim() || "",
+      };
+    }
+
     const nextSettings = {
       ...currentSettings,
       palette: input.palette,
       ...(newSmtp ? { smtp: newSmtp } : {}),
+      ...(newContact ? { contact: newContact } : {}),
     };
 
     await tx.tenant.update({

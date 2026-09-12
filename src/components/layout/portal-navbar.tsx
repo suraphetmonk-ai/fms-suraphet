@@ -65,6 +65,7 @@ export function PortalNavbar({
     { href: "/news", label: isTh ? "ข่าวสารและประกาศ" : "News & PR" },
     { href: "/personnel", label: isTh ? "ทำเนียบคณาจารย์" : "Faculty & Staff" },
     { href: "/programs", label: isTh ? "หลักสูตรการศึกษา" : "Academic Programs" },
+    { href: "/contact", label: isTh ? "ติดต่อเรา" : "Contact" },
   ];
 
   return (
