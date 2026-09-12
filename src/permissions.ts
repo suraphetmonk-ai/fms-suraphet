@@ -6,6 +6,7 @@ import { PERSONNEL_PERMISSIONS } from "@/features/personnel/permissions";
 import { CURRICULUM_PERMISSIONS } from "@/features/curriculum/permissions";
 import { STUDENT_PERMISSIONS } from "@/features/students/permissions";
 import { DOCUMENT_PERMISSIONS } from "@/features/documents/permissions";
+import { BOOKING_PERMISSIONS } from "@/features/bookings/permissions";
 
 /** สิทธิ์ทั้งระบบ — feature ใหม่เพิ่มบรรทัดที่นี่ · seed เขียนลง permissions ทุกครั้ง */
 export const ALL_PERMISSIONS: readonly PermissionDef[] = [
@@ -16,6 +17,7 @@ export const ALL_PERMISSIONS: readonly PermissionDef[] = [
   ...CURRICULUM_PERMISSIONS,
   ...STUDENT_PERMISSIONS,
   ...DOCUMENT_PERMISSIONS,
+  ...BOOKING_PERMISSIONS,
 ];
 
 const codes = ALL_PERMISSIONS.map((p) => p.code);

@@ -7,6 +7,7 @@ import { MESSAGES as personnel } from "@/features/personnel/messages";
 import { MESSAGES as curriculum } from "@/features/curriculum/messages";
 import { MESSAGES as students } from "@/features/students/messages";
 import { MESSAGES as documents } from "@/features/documents/messages";
+import { messages as bookings } from "@/features/bookings/messages";
 
 /** พจนานุกรม UI ทั้งระบบ — feature ใหม่เพิ่มบรรทัด import ที่นี่ · key ต้องไม่ซ้ำข้าม feature */
 export const UI_MESSAGES: Dictionary = {
@@ -18,4 +19,5 @@ export const UI_MESSAGES: Dictionary = {
   ...curriculum,
   ...students,
   ...documents,
+  ...bookings,
 };

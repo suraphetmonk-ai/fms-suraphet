@@ -32,24 +32,27 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
-  userTenants UserTenant[]
-  roles       Role[]
-  auditLogs   AuditLog[]
-  sampleItems       SampleItem[]
-  articleCategories ArticleCategory[]
-  articles          Article[]
-  departments       Department[]
-  personnelProfiles PersonnelProfile[]
-  programs          Program[]
-  courses           Course[]
+  userTenants         UserTenant[]
+  roles               Role[]
+  auditLogs           AuditLog[]
+  sampleItems         SampleItem[]
+  articleCategories   ArticleCategory[]
+  articles            Article[]
+  departments         Department[]
+  personnelProfiles   PersonnelProfile[]
+  programs            Program[]
+  courses             Course[]
   teachingAssignments TeachingAssignment[]
-  classSchedules    ClassSchedule[]
-  students          Student[]
-  advisingRecords   AdvisingRecord[]
+  classSchedules      ClassSchedule[]
+  students            Student[]
+  advisingRecords     AdvisingRecord[]
   studentScholarships StudentScholarship[]
   documents           Document[]
   documentApprovals   DocumentApproval[]
   documentHistories   DocumentHistory[]
+  rooms               Room[]
+  vehicles            Vehicle[]
+  bookings            Booking[]
 
   @@map("tenants")
 }
@@ -83,6 +86,8 @@ model User {
   createdDocuments  Document[]         @relation("DocumentCreator")
   documentApprovals DocumentApproval[] @relation("DocumentApprover")
   documentHistories DocumentHistory[]  @relation("DocumentHistoryActor")
+  bookings          Booking[]          @relation("UserBookings")
+  approvedBookings  Booking[]          @relation("UserApprovedBookings")
 
   @@map("users")
 }
@@ -322,38 +327,38 @@ model Department {
 }
 
 model PersonnelProfile {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  userId        String?  @map("user_id") @db.Uuid
-  personnelCode       String?  @map("personnel_code") @db.VarChar(50)
-  citizenIdEncrypted  String?  @map("citizen_id_encrypted") @db.Text
-  citizenIdMasked     String?  @map("citizen_id_masked") @db.VarChar(30)
-  monasticTitle       String?  @map("monastic_title") @db.VarChar(100)
-  chaya               String?  @map("chaya") @db.VarChar(50)
-  paliDegree          String?  @map("pali_degree") @db.VarChar(30)
-  templeName          String?  @map("temple_name") @db.VarChar(255)
-  address             String?  @db.Text
-  academicRank  String?  @map("academic_rank") @db.VarChar(50)
-  firstNameTh   String   @map("first_name_th") @db.VarChar(100)
-  lastNameTh    String   @map("last_name_th") @db.VarChar(100)
-  firstNameEn   String   @map("first_name_en") @db.VarChar(100)
-  lastNameEn    String   @map("last_name_en") @db.VarChar(100)
-  departmentId  String?  @map("department_id") @db.Uuid
-  positionTh    String   @map("position_th") @db.VarChar(150)
-  positionEn    String   @map("position_en") @db.VarChar(150)
-  personnelType String   @default("ACADEMIC") @map("personnel_type") @db.VarChar(30)
-  email         String?  @db.VarChar(255)
-  phone         String?  @db.VarChar(50)
-  phoneExt      String?  @map("phone_ext") @db.VarChar(50)
-  roomNumber    String?  @map("room_number") @db.VarChar(50)
-  avatarUrl     String?  @map("avatar_url") @db.VarChar(500)
-  biographyTh   String?  @map("biography_th") @db.Text
-  biographyEn   String?  @map("biography_en") @db.Text
-  expertise     Json     @default("[]") @db.JsonB
-  orderIndex    Int      @default(0) @map("order_index")
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  userId             String?  @map("user_id") @db.Uuid
+  personnelCode      String?  @map("personnel_code") @db.VarChar(50)
+  citizenIdEncrypted String?  @map("citizen_id_encrypted") @db.Text
+  citizenIdMasked    String?  @map("citizen_id_masked") @db.VarChar(30)
+  monasticTitle      String?  @map("monastic_title") @db.VarChar(100)
+  chaya              String?  @map("chaya") @db.VarChar(50)
+  paliDegree         String?  @map("pali_degree") @db.VarChar(30)
+  templeName         String?  @map("temple_name") @db.VarChar(255)
+  address            String?  @db.Text
+  academicRank       String?  @map("academic_rank") @db.VarChar(50)
+  firstNameTh        String   @map("first_name_th") @db.VarChar(100)
+  lastNameTh         String   @map("last_name_th") @db.VarChar(100)
+  firstNameEn        String   @map("first_name_en") @db.VarChar(100)
+  lastNameEn         String   @map("last_name_en") @db.VarChar(100)
+  departmentId       String?  @map("department_id") @db.Uuid
+  positionTh         String   @map("position_th") @db.VarChar(150)
+  positionEn         String   @map("position_en") @db.VarChar(150)
+  personnelType      String   @default("ACADEMIC") @map("personnel_type") @db.VarChar(30)
+  email              String?  @db.VarChar(255)
+  phone              String?  @db.VarChar(50)
+  phoneExt           String?  @map("phone_ext") @db.VarChar(50)
+  roomNumber         String?  @map("room_number") @db.VarChar(50)
+  avatarUrl          String?  @map("avatar_url") @db.VarChar(500)
+  biographyTh        String?  @map("biography_th") @db.Text
+  biographyEn        String?  @map("biography_en") @db.Text
+  expertise          Json     @default("[]") @db.JsonB
+  orderIndex         Int      @default(0) @map("order_index")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -392,27 +397,27 @@ model AcademicWork {
 // 3. ระบบจัดการหลักสูตร (Curriculum)
 // ==========================================
 model Program {
-  id                     String   @id @default(uuid()) @db.Uuid
-  tenantId               String   @map("tenant_id") @db.Uuid
-  departmentId           String?  @map("department_id") @db.Uuid
-  code                   String   @db.VarChar(50)
-  nameTh                 String   @map("name_th") @db.VarChar(255)
-  nameEn                 String   @map("name_en") @db.VarChar(255)
-  degreeLevel            String   @map("degree_level") @db.VarChar(30)
-  degreeNameTh           String   @map("degree_name_th") @db.VarChar(255)
-  degreeNameEn           String   @map("degree_name_en") @db.VarChar(255)
-  totalCredits           Int      @map("total_credits")
-  tuitionFee             String?  @map("tuition_fee") @db.VarChar(100)
-  durationYears          Int      @default(4) @map("duration_years")
-  descriptionTh          String?  @map("description_th") @db.Text
-  descriptionEn          String?  @map("description_en") @db.Text
+  id                    String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @map("tenant_id") @db.Uuid
+  departmentId          String?  @map("department_id") @db.Uuid
+  code                  String   @db.VarChar(50)
+  nameTh                String   @map("name_th") @db.VarChar(255)
+  nameEn                String   @map("name_en") @db.VarChar(255)
+  degreeLevel           String   @map("degree_level") @db.VarChar(30)
+  degreeNameTh          String   @map("degree_name_th") @db.VarChar(255)
+  degreeNameEn          String   @map("degree_name_en") @db.VarChar(255)
+  totalCredits          Int      @map("total_credits")
+  tuitionFee            String?  @map("tuition_fee") @db.VarChar(100)
+  durationYears         Int      @default(4) @map("duration_years")
+  descriptionTh         String?  @map("description_th") @db.Text
+  descriptionEn         String?  @map("description_en") @db.Text
   careerOpportunitiesTh String?  @map("career_opportunities_th") @db.Text
   careerOpportunitiesEn String?  @map("career_opportunities_en") @db.Text
-  pdfUrl                 String?  @map("pdf_url") @db.VarChar(500)
-  isOpenAdmission        Boolean  @default(false) @map("is_open_admission")
-  status                 String   @default("ACTIVE") @db.VarChar(30)
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  pdfUrl                String?  @map("pdf_url") @db.VarChar(500)
+  isOpenAdmission       Boolean  @default(false) @map("is_open_admission")
+  status                String   @default("ACTIVE") @db.VarChar(30)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   department          Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
@@ -644,11 +649,11 @@ model Document {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
-  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  department  Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  creator     User               @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  approvals   DocumentApproval[]
-  histories   DocumentHistory[]
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  creator    User               @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  approvals  DocumentApproval[]
+  histories  DocumentHistory[]
 
   @@unique([tenantId, documentNumber])
   @@index([tenantId, status])
@@ -699,3 +704,89 @@ model DocumentHistory {
   @@map("document_histories")
 }
 
+model Room {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  roomCode   String   @map("room_code") @db.VarChar(50)
+  nameTh     String   @map("name_th") @db.VarChar(200)
+  nameEn     String   @map("name_en") @db.VarChar(200)
+  building   String   @db.VarChar(100)
+  floor      Int      @default(1)
+  capacity   Int      @default(10)
+  roomType   String   @default("MEETING_ROOM") @map("room_type") @db.VarChar(50)
+  facilities String[] @default([])
+  imageUrl   String?  @map("image_url") @db.VarChar(500)
+  status     String   @default("AVAILABLE") @db.VarChar(30)
+  orderIndex Int      @default(0) @map("order_index")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([tenantId, roomCode])
+  @@index([tenantId, status])
+  @@map("rooms")
+}
+
+model Vehicle {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  plateNumber String   @map("plate_number") @db.VarChar(50)
+  brand       String   @db.VarChar(100)
+  model       String   @db.VarChar(100)
+  vehicleType String   @default("VAN") @map("vehicle_type") @db.VarChar(50)
+  capacity    Int      @default(4)
+  driverName  String?  @map("driver_name") @db.VarChar(150)
+  driverPhone String?  @map("driver_phone") @db.VarChar(50)
+  imageUrl    String?  @map("image_url") @db.VarChar(500)
+  status      String   @default("AVAILABLE") @db.VarChar(30)
+  orderIndex  Int      @default(0) @map("order_index")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([tenantId, plateNumber])
+  @@index([tenantId, status])
+  @@map("vehicles")
+}
+
+model Booking {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  bookingCode      String    @map("booking_code") @db.VarChar(50)
+  resourceType     String    @map("resource_type") @db.VarChar(20)
+  roomId           String?   @map("room_id") @db.Uuid
+  vehicleId        String?   @map("vehicle_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  title            String    @db.VarChar(255)
+  startDateTime    DateTime  @map("start_date_time") @db.Timestamptz()
+  endDateTime      DateTime  @map("end_date_time") @db.Timestamptz()
+  participantCount Int       @default(1) @map("participant_count")
+  contactName      String    @map("contact_name") @db.VarChar(150)
+  contactPhone     String    @map("contact_phone") @db.VarChar(50)
+  department       String?   @db.VarChar(150)
+  destination      String?   @db.VarChar(255)
+  driverRequired   Boolean   @default(true) @map("driver_required")
+  specialRequests  String?   @map("special_requests") @db.Text
+  status           String    @default("PENDING") @db.VarChar(30)
+  approvedById     String?   @map("approved_by_id") @db.Uuid
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz()
+  rejectReason     String?   @map("reject_reason") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room       Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  vehicle    Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  user       User     @relation("UserBookings", fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy User?    @relation("UserApprovedBookings", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, bookingCode])
+  @@index([tenantId, resourceType, status])
+  @@index([roomId, startDateTime, endDateTime])
+  @@index([vehicleId, startDateTime, endDateTime])
+  @@map("bookings")
+}
