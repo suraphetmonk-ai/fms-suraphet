@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Settings, Layers, Newspaper, UserCheck, GraduationCap, School, FileText, CalendarCheck, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Users, Settings, Layers, Newspaper, UserCheck, GraduationCap, School, FileText, CalendarCheck, Clock, type LucideIcon } from "lucide-react";
 import { hasPermission, P } from "@/features/identity";
 import { SAMPLE_P } from "@/features/sample";
 import { NEWS_P } from "@/features/news";
@@ -7,6 +7,7 @@ import { CURRICULUM_P } from "@/features/curriculum";
 import { STUDENT_P } from "@/features/students";
 import { DOCUMENT_P } from "@/features/documents";
 import { BOOKING_P } from "@/features/bookings";
+import { ATTENDANCE_P } from "@/features/attendance";
 
 export interface NavItem {
   /** i18n key */
@@ -25,6 +26,7 @@ export const sidebarGroups: NavGroup[] = [
   {
     label: "nav.group.faculty",
     items: [
+      { title: "attendance.nav", href: "/admin/attendance", icon: Clock, permission: ATTENDANCE_P.attendanceRead },
       { title: "news.nav", href: "/admin/news", icon: Newspaper, permission: NEWS_P.newsRead },
       { title: "documents.nav", href: "/admin/documents", icon: FileText, permission: DOCUMENT_P.documentRead },
       {

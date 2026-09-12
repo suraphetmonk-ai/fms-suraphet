@@ -53,6 +53,9 @@ model Tenant {
   rooms               Room[]
   vehicles            Vehicle[]
   bookings            Booking[]
+  workShifts          WorkShift[]
+  attendanceRecords   AttendanceRecord[]
+  leaveRequests       LeaveRequest[]
 
   @@map("tenants")
 }
@@ -77,17 +80,21 @@ model User {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
 
-  userTenants       UserTenant[]
-  authTokens        AuthToken[]
-  auditLogs         AuditLog[]         @relation("AuditActor")
-  articles          Article[]
-  personnelProfiles PersonnelProfile[]
-  students          Student[]
-  createdDocuments  Document[]         @relation("DocumentCreator")
-  documentApprovals DocumentApproval[] @relation("DocumentApprover")
-  documentHistories DocumentHistory[]  @relation("DocumentHistoryActor")
-  bookings          Booking[]          @relation("UserBookings")
-  approvedBookings  Booking[]          @relation("UserApprovedBookings")
+  userTenants         UserTenant[]
+  authTokens          AuthToken[]
+  auditLogs           AuditLog[]         @relation("AuditActor")
+  articles            Article[]
+  personnelProfiles   PersonnelProfile[]
+  students            Student[]
+  createdDocuments    Document[]         @relation("DocumentCreator")
+  documentApprovals   DocumentApproval[] @relation("DocumentApprover")
+  documentHistories   DocumentHistory[]  @relation("DocumentHistoryActor")
+  bookings            Booking[]          @relation("UserBookings")
+  approvedBookings    Booking[]          @relation("UserApprovedBookings")
+  attendanceRecords   AttendanceRecord[]
+  adjustedAttendances AttendanceRecord[] @relation("AttendanceAdjuster")
+  leaveRequests       LeaveRequest[]     @relation("UserLeaves")
+  approvedLeaves      LeaveRequest[]     @relation("LeaveApprover")
 
   @@map("users")
 }
@@ -790,3 +797,102 @@ model Booking {
   @@index([vehicleId, startDateTime, endDateTime])
   @@map("bookings")
 }
+
+// ==========================================
+// 6. ระบบลงเวลาและจัดการการลา (Attendance & Leave)
+// ==========================================
+model WorkShift {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  code                 String   @db.VarChar(50)
+  nameTh               String   @map("name_th") @db.VarChar(150)
+  nameEn               String   @map("name_en") @db.VarChar(150)
+  startTime            String   @map("start_time") @db.VarChar(5) // "08:30"
+  endTime              String   @map("end_time") @db.VarChar(5) // "16:30"
+  lateThresholdMinutes Int      @default(15) @map("late_threshold_minutes")
+  halfDayMinutes       Int      @default(240) @map("half_day_minutes")
+  workDays             Int[]    @default([1, 2, 3, 4, 5]) @map("work_days") // 1=Mon .. 7=Sun
+  isDefault            Boolean  @default(false) @map("is_default")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attendanceRecords AttendanceRecord[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("work_shifts")
+}
+
+model AttendanceRecord {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  shiftId             String?   @map("shift_id") @db.Uuid
+  date                DateTime  @db.Date
+  checkInTime         DateTime? @map("check_in_time") @db.Timestamptz()
+  checkOutTime        DateTime? @map("check_out_time") @db.Timestamptz()
+  status              String    @default("ON_TIME") @db.VarChar(30) // ON_TIME, LATE, EARLY_LEAVE, ABSENT, ON_LEAVE, HOLIDAY
+  checkInType         String    @default("ON_SITE") @map("check_in_type") @db.VarChar(30) // ON_SITE, WFH, FIELD_WORK, TEACHING
+  checkInLatitude     Float?    @map("check_in_latitude")
+  checkInLongitude    Float?    @map("check_in_longitude")
+  checkInLocationName String?   @map("check_in_location_name") @db.VarChar(255)
+  checkInIp           String?   @map("check_in_ip") @db.VarChar(50)
+  checkInRemarks      String?   @map("check_in_remarks") @db.Text
+  checkOutLatitude    Float?    @map("check_out_latitude")
+  checkOutLongitude   Float?    @map("check_out_longitude")
+  checkOutRemarks     String?   @map("check_out_remarks") @db.Text
+  workHours           Float     @default(0) @map("work_hours")
+  lateMinutes         Int       @default(0) @map("late_minutes")
+  earlyLeaveMinutes   Int       @default(0) @map("early_leave_minutes")
+  isOvertime          Boolean   @default(false) @map("is_overtime")
+  isAdjusted          Boolean   @default(false) @map("is_adjusted")
+  adjustedById        String?   @map("adjusted_by_id") @db.Uuid
+  adjustReason        String?   @map("adjust_reason") @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shift      WorkShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  adjustedBy User?      @relation("AttendanceAdjuster", fields: [adjustedById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, userId, date])
+  @@index([tenantId, date])
+  @@index([tenantId, userId])
+  @@index([tenantId, status])
+  @@map("attendance_records")
+}
+
+model LeaveRequest {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  leaveType      String    @map("leave_type") @db.VarChar(30) // SICK, PERSONAL, ANNUAL, OFFICIAL, MATERNITY, OTHER
+  startDate      DateTime  @map("start_date") @db.Date
+  endDate        DateTime  @map("end_date") @db.Date
+  isHalfDay      Boolean   @default(false) @map("is_half_day")
+  halfDayPeriod  String?   @map("half_day_period") @db.VarChar(20) // MORNING, AFTERNOON
+  totalDays      Float     @default(1.0) @map("total_days")
+  reason         String    @db.Text
+  contactAddress String?   @map("contact_address") @db.Text
+  contactPhone   String?   @map("contact_phone") @db.VarChar(50)
+  attachmentUrl  String?   @map("attachment_url") @db.VarChar(500)
+  status         String    @default("PENDING") @db.VarChar(30) // PENDING, APPROVED, REJECTED, CANCELLED
+  approverId     String?   @map("approver_id") @db.Uuid
+  approvedAt     DateTime? @map("approved_at") @db.Timestamptz()
+  rejectReason   String?   @map("reject_reason") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User   @relation("UserLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  approver User?  @relation("LeaveApprover", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([tenantId, userId])
+  @@index([startDate, endDate])
+  @@map("leave_requests")
+}
+
