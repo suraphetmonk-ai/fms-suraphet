@@ -16,7 +16,15 @@ const sarabun = Sarabun({ variable: "--font-sarabun", subsets: ["thai", "latin"]
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return { title: t("app.name"), description: t("app.tagline") };
+  return {
+    title: t("app.name"),
+    description: t("app.tagline"),
+    manifest: "/manifest.json",
+    icons: {
+      icon: "/icon.svg",
+      apple: "/icon.svg",
+    },
+  };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
