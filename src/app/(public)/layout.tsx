@@ -88,6 +88,11 @@ export default async function PublicPortalLayout({
                   {isTh ? "หลักสูตรระดับบัณฑิตศึกษา" : "Graduate Programs"}
                 </Link>
               </li>
+              <li>
+                <Link href="/verify-student" className="hover:text-primary font-medium text-primary/90 transition-colors">
+                  {isTh ? "🎓 ตรวจสอบสถานะนิสิต/วุฒิการศึกษา" : "🎓 Verify Student Status"}
+                </Link>
+              </li>
             </ul>
           </div>
 

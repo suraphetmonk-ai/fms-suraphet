@@ -6,6 +6,7 @@ import { MESSAGES as sample } from "@/features/sample/messages";
 import { MESSAGES as news } from "@/features/news/messages";
 import { MESSAGES as personnel } from "@/features/personnel/messages";
 import { MESSAGES as curriculum } from "@/features/curriculum/messages";
+import { MESSAGES as students } from "@/features/students/messages";
 import { ALL_PERMISSIONS } from "@/permissions";
 import { LOCALES } from "@/shared/lib/i18n/config";
 import type { Dictionary } from "@/shared/lib/i18n/translate";
@@ -21,6 +22,7 @@ const DICTIONARIES: { name: string; messages: Dictionary }[] = [
   { name: "news", messages: news },
   { name: "personnel", messages: personnel },
   { name: "curriculum", messages: curriculum },
+  { name: "students", messages: students },
 ];
 
 describe("UI_MESSAGES", () => {

@@ -44,6 +44,9 @@ model Tenant {
   courses           Course[]
   teachingAssignments TeachingAssignment[]
   classSchedules    ClassSchedule[]
+  students          Student[]
+  advisingRecords   AdvisingRecord[]
+  studentScholarships StudentScholarship[]
 
   @@map("tenants")
 }
@@ -73,6 +76,7 @@ model User {
   auditLogs         AuditLog[]         @relation("AuditActor")
   articles          Article[]
   personnelProfiles PersonnelProfile[]
+  students          Student[]
 
   @@map("users")
 }
@@ -350,6 +354,8 @@ model PersonnelProfile {
   works               AcademicWork[]
   teachingAssignments TeachingAssignment[]
   classSchedules      ClassSchedule[]
+  advisedStudents     Student[]            @relation("AdvisorStudents")
+  advisingRecords     AdvisingRecord[]     @relation("AdvisorAdvisingRecords")
 
   @@index([tenantId, isActive, orderIndex])
   @@index([tenantId, personnelCode])
@@ -407,6 +413,7 @@ model Program {
   programCourses      ProgramCourse[]
   teachingAssignments TeachingAssignment[]
   classSchedules      ClassSchedule[]
+  students            Student[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status, degreeLevel])
@@ -527,5 +534,85 @@ model ClassSchedule {
   @@index([courseId])
   @@index([room])
   @@map("class_schedules")
+}
+
+// ==========================================
+// 4. ระบบบริหารจัดการนิสิตและอาจารย์ที่ปรึกษา (Student Management & Academic Advising)
+// ==========================================
+
+model Student {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  studentCode   String   @map("student_code") @db.VarChar(50)
+  title         String   @default("นาย") @db.VarChar(50)
+  firstNameTh   String   @map("first_name_th") @db.VarChar(100)
+  lastNameTh    String   @map("last_name_th") @db.VarChar(100)
+  firstNameEn   String   @map("first_name_en") @db.VarChar(100)
+  lastNameEn    String   @map("last_name_en") @db.VarChar(100)
+  programId     String   @map("program_id") @db.Uuid
+  advisorId     String?  @map("advisor_id") @db.Uuid
+  admissionYear Int      @map("admission_year")
+  status        String   @default("STUDYING") @db.VarChar(30)
+  gpa           Decimal  @default(0.00) @db.Decimal(4, 2)
+  email         String?  @db.VarChar(255)
+  phone         String?  @db.VarChar(50)
+  avatarUrl     String?  @map("avatar_url") @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  program         Program              @relation(fields: [programId], references: [id], onDelete: Restrict)
+  advisor         PersonnelProfile?    @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
+  advisingRecords AdvisingRecord[]
+  scholarships    StudentScholarship[]
+
+  @@unique([tenantId, studentCode])
+  @@index([tenantId, status])
+  @@index([tenantId, admissionYear])
+  @@index([programId])
+  @@index([advisorId])
+  @@map("students")
+}
+
+model AdvisingRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  studentId      String   @map("student_id") @db.Uuid
+  advisorId      String   @map("advisor_id") @db.Uuid
+  date           DateTime @default(now()) @db.Timestamptz()
+  topic          String   @db.VarChar(255)
+  detail         String   @db.Text
+  actionPlan     String?  @map("action_plan") @db.Text
+  isConfidential Boolean  @default(false) @map("is_confidential")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  advisor PersonnelProfile @relation("AdvisorAdvisingRecords", fields: [advisorId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, studentId])
+  @@index([advisorId])
+  @@map("advising_records")
+}
+
+model StudentScholarship {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  studentId       String   @map("student_id") @db.Uuid
+  scholarshipName String   @map("scholarship_name") @db.VarChar(255)
+  academicYear    Int      @map("academic_year")
+  amount          Decimal  @default(0.00) @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, studentId])
+  @@index([academicYear])
+  @@map("student_scholarships")
 }
 
