@@ -30,16 +30,25 @@ export default async function PublicNewsListPage({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header */}
-      <div className="border-b pb-6 space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-          {isTh ? "ข่าวสารและประกาศประชาสัมพันธ์" : "News & Faculty Announcements"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {isTh
-            ? "ติดตามข่าวสาร กิจกรรม อบรมสัมมนา และประกาศสำคัญของคณะ"
-            : "Stay updated with latest news, activities, seminars, and faculty announcements"}
-        </p>
+      <div className="border-b pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+            {isTh ? "ข่าวสารและประกาศประชาสัมพันธ์" : "News & Faculty Announcements"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isTh
+              ? "ติดตามข่าวสาร กิจกรรม อบรมสัมมนา และประกาศสำคัญของคณะ"
+              : "Stay updated with latest news, activities, seminars, and faculty announcements"}
+          </p>
+        </div>
+        <Button asChild variant="outline" className="gap-2 shrink-0">
+          <Link href="/admin/news">
+            <Newspaper className="h-4 w-4" />
+            {isTh ? "จัดการข่าวสาร (Admin)" : "Manage News (Admin)"}
+          </Link>
+        </Button>
       </div>
+
 
       {/* Category Pills */}
       <div className="flex flex-wrap items-center gap-2">

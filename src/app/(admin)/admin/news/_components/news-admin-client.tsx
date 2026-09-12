@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Edit, Trash2, Pin, Search, Eye, ExternalLink } from "lucide-react";
+import { Plus, Edit, Trash2, Pin, Search, Eye, ExternalLink, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useT, useLocale } from "@/shared/lib/i18n/client";
@@ -21,7 +21,9 @@ import {
   updateArticleAction,
   deleteArticleAction,
   getArticlesAction,
+  translateNewsWithGeminiAction,
 } from "@/features/news/actions";
+
 
 interface Props {
   initialArticles: ArticleDto[];
@@ -49,6 +51,8 @@ export function NewsAdminClient({
   // Dialog State
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ArticleDto | null>(null);
+  const [isAiTranslating, setIsAiTranslating] = useState(false);
+
 
   // Form State
   const [formData, setFormData] = useState<{
@@ -126,7 +130,42 @@ export function NewsAdminClient({
     }));
   };
 
+  const handleAiTranslate = async () => {
+    if (!formData.titleTh.trim() && !formData.contentTh.trim()) {
+      toast.error(t("news.aiTranslatePromptTh"));
+      return;
+    }
+
+    setIsAiTranslating(true);
+    try {
+      const res = await translateNewsWithGeminiAction({
+        titleTh: formData.titleTh,
+        excerptTh: formData.excerptTh,
+        contentTh: formData.contentTh,
+      });
+
+      if (res.ok) {
+        setFormData((prev) => ({
+          ...prev,
+          titleEn: res.data.titleEn,
+          excerptEn: res.data.excerptEn,
+          contentEn: res.data.contentEn,
+          slug: res.data.slug || prev.slug,
+        }));
+        toast.success(t("news.aiTranslateSuccess"));
+      } else {
+        const msg = res.error.fieldErrors?.gemini?.[0] || res.error.fieldErrors?.titleTh?.[0] || res.error.message;
+        toast.error(msg || t("news.aiTranslateApiKeyMissing"));
+      }
+    } catch {
+      toast.error(t("news.aiTranslateApiKeyMissing"));
+    } finally {
+      setIsAiTranslating(false);
+    }
+  };
+
   const handleSubmit = () => {
+
     if (!formData.titleTh.trim()) {
       toast.error(t("news.titleTh") + " required");
       return;
@@ -358,6 +397,43 @@ export function NewsAdminClient({
             description="กรอกข้อมูลข่าวสารและประชาสัมพันธ์สำหรับเผยแพร่"
           />
           <LiyonDialogBody className="space-y-4 max-h-[75vh] overflow-y-auto pr-2">
+            {/* Gemini AI Translation Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3.5 rounded-lg border border-primary/20 bg-primary/5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    {t("news.aiTranslate")}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    กรอกข้อมูลภาษาไทย แล้วกดปุ่มนี้เพื่อแปลหัวข้อ สรุปย่อ เนื้อหา และสร้าง Slug ภาษาอังกฤษอัตโนมัติ
+                  </div>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleAiTranslate}
+                disabled={isAiTranslating || (!formData.titleTh.trim() && !formData.contentTh.trim())}
+                className="gap-2 shrink-0 bg-background hover:bg-primary hover:text-primary-foreground border-primary/30 transition-all cursor-pointer font-medium"
+              >
+                {isAiTranslating ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{t("news.aiTranslating")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span>แปลเป็นอังกฤษด้วย AI</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <LiyonField label={t("news.titleTh")}>
                 <input
@@ -416,15 +492,27 @@ export function NewsAdminClient({
               />
             </LiyonField>
 
-            <LiyonField label={t("news.excerpt") + " (ไทย)"}>
-              <textarea
-                rows={2}
-                value={formData.excerptTh}
-                onChange={(e) => setFormData({ ...formData, excerptTh: e.target.value })}
-                placeholder="สรุปเนื้อหาข่าวสั้นๆ สำหรับแสดงในการ์ดหน้าแรก..."
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </LiyonField>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <LiyonField label={t("news.excerpt") + " (ภาษาไทย)"}>
+                <textarea
+                  rows={2}
+                  value={formData.excerptTh}
+                  onChange={(e) => setFormData({ ...formData, excerptTh: e.target.value })}
+                  placeholder="สรุปเนื้อหาข่าวสั้นๆ สำหรับแสดงในการ์ดหน้าแรก..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </LiyonField>
+
+              <LiyonField label={t("news.excerpt") + " (English)"}>
+                <textarea
+                  rows={2}
+                  value={formData.excerptEn}
+                  onChange={(e) => setFormData({ ...formData, excerptEn: e.target.value })}
+                  placeholder="Brief news summary for preview cards..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </LiyonField>
+            </div>
 
             <LiyonField label={t("news.contentTh")}>
               <textarea
@@ -438,13 +526,14 @@ export function NewsAdminClient({
 
             <LiyonField label={t("news.contentEn")}>
               <textarea
-                rows={4}
+                rows={5}
                 value={formData.contentEn}
                 onChange={(e) => setFormData({ ...formData, contentEn: e.target.value })}
                 placeholder="English news content details..."
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-sans"
               />
             </LiyonField>
+
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2 border-t">
               <LiyonField label={t("news.status")}>

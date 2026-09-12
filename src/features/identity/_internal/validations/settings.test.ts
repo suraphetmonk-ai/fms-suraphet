@@ -131,16 +131,39 @@ describe("updateSettingsSchema", () => {
     }
   });
 
-  it("ปฏิเสธเมื่ออีเมลติดต่อไม่ถูกต้อง", () => {
+  it("ยอมรับข้อมูลการตั้งค่า Gemini AI ที่ถูกต้อง", () => {
     const r = updateSettingsSchema.safeParse({
       nameTh: "คณะวิทยาการจัดการ",
       nameEn: "Faculty of Management Science",
       palette: "blue",
-      contact: {
-        email: "not-an-email",
+      gemini: {
+        enabled: true,
+        apiKey: "AIzaSyFakeApiKey123456",
+        model: "gemini-2.5-flash",
       },
     });
-    expect(r.success).toBe(false);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.gemini?.enabled).toBe(true);
+      expect(r.data.gemini?.apiKey).toBe("AIzaSyFakeApiKey123456");
+      expect(r.data.gemini?.model).toBe("gemini-2.5-flash");
+    }
+  });
+
+  it("ใช้ค่า default สำหรับโมเดล Gemini หากไม่ได้ระบุ", () => {
+    const r = updateSettingsSchema.safeParse({
+      nameTh: "คณะวิทยาการจัดการ",
+      nameEn: "Faculty of Management Science",
+      palette: "blue",
+      gemini: {
+        enabled: false,
+      },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.gemini?.model).toBe("gemini-2.5-flash");
+    }
   });
 });
+
 

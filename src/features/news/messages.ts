@@ -1,4 +1,4 @@
-﻿import type { Dictionary } from "@/shared/lib/i18n/translate";
+import type { Dictionary } from "@/shared/lib/i18n/translate";
 
 export const MESSAGES: Dictionary = {
   "news.nav": { th: "จัดการข่าวสาร", en: "News Management" },
@@ -35,4 +35,10 @@ export const MESSAGES: Dictionary = {
   "perm.news:delete": { th: "ลบข่าวสาร", en: "Delete news articles" },
   "perm.news:publish": { th: "อนุมัติเผยแพร่ข่าว", en: "Publish news articles" },
   "perm.news:pin": { th: "ปักหมุดข่าวเด่น", en: "Pin news articles" },
+  "news.aiTranslate": { th: "✨ แปลและสร้างภาษาอังกฤษด้วย Gemini AI", en: "✨ Translate to English with Gemini AI" },
+  "news.aiTranslating": { th: "กำลังประมวลผลด้วย Gemini AI...", en: "Processing with Gemini AI..." },
+  "news.aiTranslateSuccess": { th: "สร้างข้อมูลภาษาอังกฤษและสรุปเนื้อหาด้วย Gemini AI สำเร็จ!", en: "Generated English translation and summary successfully!" },
+  "news.aiTranslatePromptTh": { th: "กรุณากรอกหัวข้อหรือเนื้อหาข่าวภาษาไทยก่อน", en: "Please enter Thai title or content first" },
+  "news.aiTranslateApiKeyMissing": { th: "ยังไม่ได้ตั้งค่า Gemini API Key กรุณาไปที่หน้า การตั้งค่า เพื่อใส่ API Key", en: "Gemini API Key missing. Please configure it in Settings" },
+
 };

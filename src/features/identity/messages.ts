@@ -192,7 +192,22 @@ export const MESSAGES: Dictionary = {
   "settings.facebook": { th: "Facebook Page (URL หรือ @ชื่อเพจ)", en: "Facebook page URL or handle" },
   "settings.lineId": { th: "Line Official ID / ลิงก์", en: "Line Official ID or link" },
   "settings.mapEmbedUrl": { th: "ลิงก์แผนที่ Google Maps หรือ Google Maps Embed URL", en: "Google Maps link or Embed URL" },
+  // gemini ai
+  "settings.geminiTitle": { th: "การเชื่อมต่อ Google Gemini API (AI Assistant)", en: "Google Gemini API Connection (AI Assistant)" },
+  "settings.geminiDesc": { th: "กำหนดค่า API Key เพื่อเปิดใช้งานฟีเจอร์ AI ช่วยแปลข่าว 2 ภาษา และสรุปเนื้อหาอัตโนมัติ", en: "Configure API Key to enable AI features for bilingual news translation and auto-summarization" },
+  "settings.geminiEnable": { th: "เปิดใช้งาน Google Gemini AI", en: "Enable Google Gemini AI" },
+  "settings.geminiApiKey": { th: "Google Gemini API Key", en: "Google Gemini API Key" },
+  "settings.geminiApiKeyPlaceholder": { th: "กรอก AIzaSy...", en: "Enter AIzaSy..." },
+  "settings.geminiApiKeyConfigured": { th: "บันทึก API Key ไว้แล้ว (กรอกใหม่เฉพาะเมื่อต้องการเปลี่ยน)", en: "API Key is configured (enter only to change)" },
+  "settings.geminiModel": { th: "โมเดล AI (Model)", en: "AI Model" },
+  "settings.geminiTestTitle": { th: "ทดสอบการเชื่อมต่อ Gemini API", en: "Test Gemini API Connection" },
+  "settings.geminiTestBtn": { th: "ทดสอบเชื่อมต่อ API", en: "Test API Connection" },
+  "settings.geminiTesting": { th: "กำลังทดสอบเชื่อมต่อ...", en: "Testing connection..." },
+  "settings.geminiTestSuccess": { th: "เชื่อมต่อ Google Gemini API สำเร็จเรียบร้อย!", en: "Connected to Google Gemini API successfully!" },
+  "settings.geminiTestFailed": { th: "เชื่อมต่อไม่สำเร็จ กรุณาตรวจสอบ API Key", en: "Connection failed. Please check your API Key" },
+  "settings.geminiGetKeyHint": { th: "สามารถขอรับ API Key ฟรีได้ที่", en: "You can get a free API Key at" },
   // me
+
   "me.title": { th: "โปรไฟล์ของฉัน", en: "My profile" },
   "me.name": { th: "ชื่อที่แสดง", en: "Display name" },
   "me.language": { th: "ภาษาที่ใช้", en: "Language" },

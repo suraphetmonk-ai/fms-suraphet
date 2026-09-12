@@ -6,7 +6,9 @@ import { zodErrorMap } from "@/shared/lib/i18n/zod-locale";
 import { P } from "../../permissions";
 import { requirePermission } from "../rbac";
 import { updateSettingsSchema } from "../validations/settings";
-import { getTenantSettings, updateTenantSettings, type TenantSettings } from "../services/tenant.service";
+import { getTenantSettings, updateTenantSettings, getTenantGeminiConfig, type TenantSettings } from "../services/tenant.service";
+import { callGeminiApi } from "@/shared/lib/ai/gemini";
+
 
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -184,3 +186,52 @@ export async function testSmtpConnectionAction(input: {
     }
   });
 }
+
+export async function testGeminiConnectionAction(input: {
+  apiKey?: string;
+  model?: string;
+}): Promise<ActionResult<{ message: string; model: string }>> {
+  return runAction(async () => {
+    const ctx = await requirePermission(P.settingsManage);
+    let keyToUse = input.apiKey?.trim();
+    let modelToUse = input.model?.trim() || "gemini-2.5-flash";
+
+    if (!keyToUse) {
+      const config = await getTenantGeminiConfig(ctx.tenantId);
+      if (config?.apiKey) {
+        keyToUse = config.apiKey;
+        if (!input.model && config.model) {
+          modelToUse = config.model;
+        }
+      }
+    }
+
+    if (!keyToUse) {
+      throw errors.validation("กรุณาระบุ Google Gemini API Key ก่อนทำการทดสอบ", {
+        apiKey: ["กรุณากรอก API Key"],
+      });
+    }
+
+    try {
+      const responseText = await callGeminiApi({
+        apiKey: keyToUse,
+        model: modelToUse,
+        prompt: "Hello! Please reply with exactly: OK",
+        temperature: 0,
+      });
+
+      logger.info("testGeminiConnectionAction: success", { responsePreview: responseText.slice(0, 50) });
+      return {
+        message: "เชื่อมต่อกับ Google Gemini API สำเร็จเรียบร้อย! ระบบ AI พร้อมใช้งาน",
+        model: modelToUse,
+      };
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error("testGeminiConnectionAction failed", { err: errMsg });
+      throw errors.validation(errMsg, {
+        apiKey: [errMsg],
+      });
+    }
+  });
+}
+
